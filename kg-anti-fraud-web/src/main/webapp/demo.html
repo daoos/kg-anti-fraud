@@ -1,0 +1,86 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+<script src="jquery.min.js"></script>
+<script src="springy.js"></script>
+<script src="springyui.js"></script>
+<script>
+    var graph = new Springy.Graph();
+
+
+    var fjx = graph.newNode({
+        label: '冯金鑫',   //不设置label, 则节点文本为id
+        type: '黑名单',
+        showNeighbors: false,    //标记: 当前是否显示了外围节点(一度)
+        ondoubleclick: function () {
+
+            /*展示外围节点前需要判断, 当前是否有外围节点
+            * 1 奇数次双击时生成当亲节点的所有外围节点和边(一度)
+            * 2 偶数次双击, 删除上次添加的节点和边(根据id)
+            * */
+            if (!this.showNeighbors) {
+                //添加外围节点
+                this.showNeighbors = true;
+                //添加node, 利用addNode()去重的特性
+                var fjx_son = new Springy.Node('fjx_son', {label: '冯金鑫的宝贝', type: '灰名单'});
+                var fjx_teacher = new Springy.Node('fjx_teacher', {label: '王健林', type: '优质客户'});
+                graph.addNode(fjx_son);
+                graph.addNode(fjx_teacher);
+//            var fjx_son = graph.newNode({label:'冯金鑫的宝贝',type:'灰名单'});
+                //添加边
+                var fjx_fjx_son = new Springy.Edge('fjx_fjx_son', fjx, fjx_son, {color: '#109677', label: '儿子'});
+                var fjx_guard = new Springy.Edge('fjx_guard', fjx, fjx_son, {color: '#990677', label: '监护'});
+                var fjx_fjx_teacher = new Springy.Edge('fjx_fjx_teacher', fjx, fjx_teacher, {
+                    color: '#109766',
+                    label: '老师'
+                });
+                graph.addEdge(fjx_fjx_son);
+                graph.addEdge(fjx_fjx_teacher);
+                graph.addEdge(fjx_guard);
+            } else {
+                this.showNeighbors = false;
+                /*
+                * 删除节点, 边自动被删除*/
+                //删除外围节点
+//                if(graph.nodeSet['fjx_son']!==undefined){
+//                    graph.removeNode(graph.nodeSet['fjx_son']);
+//                }
+
+                //遍历 edges 根据id找出要删除的边
+                for (var i = graph.edges.length - 1; i >= 0; i--) {
+                    if (graph.edges[i].id === 'fjx_fjx_son') {
+                        graph.removeEdge(graph.edges[i]);  //若edges中有传入edge.id. 则删除之
+                    }
+                }
+
+
+            }
+
+
+        }
+    });
+    var zy = graph.newNode({label: '张英', type: 'black'});
+
+
+    graph.newEdge(fjx, zy, {color: '#F30000', label: '夫妻'});
+    graph.newEdge(fjx, zy, {color: '#CC333F', label: '男女朋友'});
+    graph.newEdge(zy, fjx, {color: '#DDAACC', label: '同事'});
+    graph.newEdge(zy, fjx, {color: '#E3F', label: '联系人'});
+
+    jQuery(function () {
+        var springy = window.springy = jQuery('#springydemo').springy({
+            graph: graph,
+            nodeSelected: function (node) {
+//                alert('Node selected: ' + JSON.stringify(node.data));
+            }
+        });
+        var layout = new Springy.Layout.ForceDirected(graph, 640, 480.0, 0.5);
+        console.log(layout.graph.nodes);
+    });
+</script>
+
+<canvas id="springydemo" width="640" height="480"/>
+</body>
+</html>

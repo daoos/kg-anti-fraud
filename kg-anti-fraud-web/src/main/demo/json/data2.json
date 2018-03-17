@@ -1,0 +1,54 @@
+{
+  "nodes": [
+    {
+      "id": "334889",
+      "certi_no": "110101195607302022",
+      "name": "张三",
+      "node_color": 0
+    },
+    {
+      "id": "1015550",
+      "certi_no": "130182198201081915",
+      "name": "李四",
+      "node_color": 1
+    },
+    {
+      "id": "2015452",
+      "certi_no": "110101195607302022",
+      "name": "范冰冰",
+      "node_color": 1
+    },
+    {
+      "id": "1009",
+      "certi_no": "130824199002080218",
+      "name": "李泉",
+      "node_color": 1
+    }
+  ],
+  "edges": [
+    {
+      "vid":11,
+      "source": "2015452",
+      "target": "1015550",
+      "content": "1000万",
+      "content_type": "借贷",
+      "hasarrow": 1
+    },
+    {
+      "vid":12,
+      "source": "1009",
+      "target": "2015452",
+      "content": "中央戏剧学院",
+      "content_type": "学校",
+      "hasarrow": 0
+    },
+    {
+      "vid":13,
+      "source": "2015452",
+      "target": "334889",
+      "content": "姐姐",
+      "content_type": "亲属",
+      "hasarrow": 1
+    }
+  ]
+}

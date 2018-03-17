@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+
+
+<configuration>
+    <settings>
+        <!-- 打印查询语句 -->
+        <setting name="logImpl" value="STDOUT_LOGGING" />
+    </settings>
+
+    <!--
+    配置别名-->
+    <typeAliases>
+        <!--配置javabean的别名-->
+        <!--
+        方式1: 具体到类   缺点: 写死了, 有多少各类就要配多少个-->
+        <!--<typeAlias type="x01_mybatis_test.bean.User" alias="User"/>-->
+        <!--
+        方式2: 指定包
+            会自动找包及其子包
+            大小写!不敏感!-->
+        <package name="com.jfpuhui.anti.pojo"/>
+    </typeAliases>
+
+
+
+
+</configuration>

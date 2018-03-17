@@ -1,0 +1,76 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:task="http://www.springframework.org/schema/task"
+       xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+		http://www.springframework.org/schema/mvc
+		http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context-4.0.xsd
+		http://www.springframework.org/schema/aop
+		http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+		http://www.springframework.org/schema/tx
+		http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+		http://www.springframework.org/schema/task
+   		http://www.springframework.org/schema/task/spring-task-4.0.xsd
+		http://code.alibabatech.com/schema/dubbo
+		http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+
+    <!--http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd-->
+
+    <!--
+    配置扫描包-->
+    <context:component-scan base-package="com.jfpuhui.anti"/>
+
+    <!--加载配置工程参数配置文件-->
+    <context:property-placeholder location="classpath*:config/project.properties"/>
+
+    <!--
+    三大组件-->
+    <!--处理器映射器 HandlerMapping-->
+    <!--基于注解的-->
+    <!--<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping"/>-->
+    <!--处理器适配器 HandlerAdapter-->
+    <!--<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter"/>-->
+    <!--
+    注解驱动代替
+        包含了处理器映射器和处理器适配器-->
+    <mvc:annotation-driven />
+
+
+    <!--视图解析器 ViewResolver-->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/jsp/"></property>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+    <!--
+    ///三大组件-->
+
+
+    <!--
+    拦截器栈-->
+    <!--<mvc:interceptors>-->
+        <!--<mvc:interceptor>-->
+            <!--&lt;!&ndash;定义拦截规则&ndash;&gt;-->
+            <!--<mvc:mapping path="/buyer/**"/>-->
+            <!--<mvc:mapping path="/login/**"/>-->
+            <!--&lt;!&ndash;指定拦截器&ndash;&gt;-->
+            <!--<bean class="com.xbbsport.portal.intercept.LoginInterceptor"/>-->
+        <!--</mvc:interceptor>-->
+    <!--</mvc:interceptors>-->
+    
+    
+    <!--
+    引入spring其他配置xml-->
+    <import resource="classpath:config/*.xml"/>
+
+
+
+
+
+</beans>

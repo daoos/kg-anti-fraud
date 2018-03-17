@@ -1,0 +1,21 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+<script src="jquery.min.js"></script>
+<script src="springy.js"></script>
+<script src="springyui.js"></script>
+<script>
+    var graph = new Springy.Graph();
+
+    $.getJSON("json/data.json",function(data) {
+        var json = JSON.stringify(data);
+        alert("xxx");
+        console.log(json);
+//        console.log(data);
+//        alert(data);
+    })
+</script>
+</body>
+</html>

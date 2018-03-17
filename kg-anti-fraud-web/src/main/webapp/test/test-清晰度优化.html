@@ -1,0 +1,182 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+<script src="jquery.min.js"></script>
+<script src="springy.js"></script>
+<script src="springyui.js"></script>
+<script>
+
+    //START: 方法区
+    /**根据contentType映射出颜色配置*/
+    function mapColorFromContentType(contentType) {
+        //TODO
+        return "#990677";
+    }
+
+
+    /**展示 or 收起周边节点
+     * 1 双击初始化图中最外围节点 2 双击非最外围节点(暂简化考虑).
+     * 简单处理:
+     * 第一次双击节点时, 拿着该节点id获取后台数据, 生成节点和边数据, 缓存值节点data属性中.
+     * 以后偶数次双击, 删除这些点(删除点即可, 自动删除了边),
+     * 奇数次双击, 从缓存中找到节点和边信息, 添加到图中.
+     * 后台也可用缓存, 展示非外围点周边节点时就可以不用再查数据库了.(Tip: 后台在边list中找)
+     * @param flag true:展示周边节点; false:收起周边节点, 其实就是删除周边节点*/
+    function toggleNeighborShow(data, graph) {
+
+        var neighbors = data.neighbors;
+
+        if (data.neighborStatus) {
+            //若当前周边节点为显示状态, 则删除周边
+//            var nodes = neighbors.nodes;
+//            nodes.forEach(function (node) {
+//                graph.removeNode(node);
+//            })
+
+            if (neighbors.edges != null && neighbors.edges.length > 0) {
+                neighbors.edges.forEach(function (t) {
+                    console.log(graph);
+                    console.log(t);
+                    graph.removeEdge(t);
+                })
+            }
+
+            data.neighborStatus = false;
+        } else {
+            //若当前周边节点为隐藏状态, 则展示
+            //先在data缓存里找
+            //判断data缓存里是否有周边节点数据
+            var hasCache = false;
+            try {
+                if (neighbors.nodes.length > 0 || neighbors.edges.length > 0) {
+                    hasCache = true;
+                }
+            } catch (e) {
+            }
+
+            if (!hasCache) {
+                //若缓存里没有, 则后台获取
+                //TODO 获取后台数据
+                $.getJSON("json/data3.json", function (dbclickGetData) {
+                    //start: 根据当前节点的id从后台获取其周边一度关联节点数据  --此逻辑放入后台放入后台
+                    var dbclickGetData = JSON.stringify(dbclickGetData);
+                    var dbclickGetData = JSON.parse(dbclickGetData);
+                    var nodeId = data.id;
+
+                    dbclickGetData.edges.forEach(function (e) {
+                        var filterNodeId = null;
+                        if (e.source == nodeId) {
+                            filterNodeId = e.target;
+                        }
+                        if (e.target == nodeId) {
+                            filterNodeId = e.source;
+                        }
+                        if (filterNodeId != null) {
+                            data.neighbors.edges.push(e);
+                            dbclickGetData.nodes.forEach(function (n) {
+                                if (n.id == filterNodeId) {
+                                    data.neighbors.nodes.push(n);
+                                }
+                            })
+                        }
+                    });
+                    //end
+
+                    initGraph(data.neighbors, graph);
+
+                    data.neighborStatus = true;
+                })
+            } else {
+                initGraph(neighbors, graph);   //'递归'调用
+                data.neighborStatus = true;
+            }
+
+        }
+
+        return data;
+    }
+
+
+    /**初始化图形  将查到的所有节点和边全部展示
+     * @param data nodes:[]  edges:[]*/
+    function initGraph(data, graph) {
+        if (data === undefined || data == null) {
+            return;
+        }
+
+        /*
+        * 节点id和边id为后台传入的id
+        *
+        * */
+        var nodes = data.nodes;
+        if (nodes != null && nodes.length > 0) {
+            nodes.forEach(function (it) {
+                //建立节点
+                var data = it;
+                data.label = it.name;     //可灵活指定用什么字段作为label
+                data.neighborStatus = false; //标记: 当前是否显示了外围节点
+                data.neighbors = {"nodes": [], "edges": []};  //缓存周边节点和边
+                // 添加双击事件, 展示/收起周边节点
+                data.ondoubleclick = function () {
+                    data = toggleNeighborShow(this, graph);
+                };
+
+                var node = new Springy.Node(data.id, data);
+                graph.addNode(node);
+
+            })
+        }
+
+        var edges = data.edges;
+        if (edges != null && edges.length > 0) {
+            edges.forEach(function (it) {
+                //建立边
+                var data = it;
+                data.color = mapColorFromContentType(it.content_type);
+                data.label = it.content_type + "\n" + it.content;      //可根据需求灵活配置边上显示的内容
+
+                //根据节点id在上述已经创建的node中找出node
+                var source = graph.nodeSet[it.source];
+                var target = graph.nodeSet[it.target];
+
+
+                //vid 由 content和contentType取md5唯一确定出的边
+                var edge = new Springy.Edge(data.id, source, target, data);
+                graph.addEdge(edge);
+            })
+        }
+
+
+    }
+
+    //END: 方法区
+
+
+    var graph = new Springy.Graph();
+    $.getJSON("json/data.json", function (data) {
+        //获取数据
+        var json = JSON.stringify(data);
+        var data = JSON.parse(json);
+
+        //初始化图形  将查到的所有节点和边全部展示
+        initGraph(data, graph);
+    })
+
+
+    jQuery(function () {
+        var springy = window.springy = jQuery('#springydemo').springy({
+            graph: graph,
+            nodeSelected: function (node) {
+//                alert('Node selected: ' + JSON.stringify(node.data));
+            }
+        });
+        
+    });
+
+</script>
+
+
+</body><canvas id="springydemo" width="2000px" height="1200px" style="margin-left:-300px;margin-top:-300px;transform:scale(0.5,0.5); -webkit-transform:scale(0.5,0.5);"/>
+</html>

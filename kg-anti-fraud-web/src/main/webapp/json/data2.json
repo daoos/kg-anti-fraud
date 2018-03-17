@@ -1,0 +1,70 @@
+{
+  "nodes": [
+    {
+      "id": "334889",
+      "certi_no": "110101195607302022",
+      "name": "张三",
+      "node_color": 0
+    },
+    {
+      "id": "1015550",
+      "certi_no": "130182198201081915",
+      "name": "李四",
+      "node_color": 1
+    },
+    {
+      "id": "1364591",
+      "certi_no": "340182198201081890",
+      "name": "王五",
+      "node_color": 1
+    },
+    {
+      "id": "2015452",
+      "certi_no": "110101195607302022",
+      "name": "范冰冰",
+      "node_color": 1
+    }
+  ],
+  "edges": [
+    {
+      "id":1,
+      "source": "334889",
+      "target": "1015550",
+      "content": "15001279016",
+      "content_type": "通话记录",
+      "hasarrow": 1
+    },
+    {
+      "id":2,
+      "source": "1015550",
+      "target": "1364591",
+      "content": "望京SOHO大厦",
+      "content_type": "位置",
+      "hasarrow": 0
+    },
+    {
+      "id":3,
+      "source": "334889",
+      "target": "2015452",
+      "content": "15848270018",
+      "content_type": "紧急联系人",
+      "hasarrow": 1
+    },
+    {
+      "id":11,
+      "source": "2015452",
+      "target": "1015550",
+      "content": "1000万",
+      "content_type": "借贷",
+      "hasarrow": 1
+    },
+    {
+      "id":13,
+      "source": "2015452",
+      "target": "334889",
+      "content": "姐姐",
+      "content_type": "亲属",
+      "hasarrow": 1
+    }
+  ]
+}
