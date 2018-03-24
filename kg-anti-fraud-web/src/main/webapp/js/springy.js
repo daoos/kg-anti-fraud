@@ -47,7 +47,7 @@
         this.nodeSet = {};	//nodeId:node
         this.nodes = [];
         this.edges = [];	//存入 edge 们
-        this.adjacency = {};	//{source.id:{target.id:[edge,...]}
+        this.adjacency = {};	//{source.id:{target.id:[edge,...],...}
         this.reverseAdjacency = {};  //targetId->sourceId->[edge,....]
 
         this.nextNodeId = 0;

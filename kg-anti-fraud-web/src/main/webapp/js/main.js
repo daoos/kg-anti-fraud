@@ -8,9 +8,11 @@ var KgAnti = function () {
 KgAnti.prototype.configure = function (context) {
     /*
     * context:{
+    *   canvasContainer:
     *   nodeTypeContainer:
     *   edgeTypeContainer:
     *   nodeSelected:
+    *   dbClickUrl:
     * }*/
 
     if (typeof context !== "object") {
@@ -32,8 +34,9 @@ KgAnti.prototype.configure = function (context) {
 };
 
 
-KgAnti.prototype.springyGraph  = function (graph) {
-    $('#springydemo').springy({
+KgAnti.prototype.springyGraph = function (graph) {
+    // $('#springydemo').springy({
+    this.context.canvasContainer.springy({
         graph: graph,
         nodeSelected: this.context.nodeSelected
     });
@@ -159,9 +162,60 @@ function mapColorFromNodeType(nodeType) {
 }
 
 
-/**双击连通or断开此节点和周边一度节点的边
- * 双击图中节点,携带节点id去后台获取对应的一度点,边数据*/
-KgAnti.prototype.toggleNeighborShow = function (url, nodeId) {
+/**切换显示更深的节点和关联的边
+ * 双击触发次方法
+ * 显示时, 优先级低于类别, 只显示关联的一级deeper的节点和边
+ var doDisplay = false;
+ * 隐藏时, 优先级高于类别, 递归隐藏所有级别deeper*/
+KgAnti.prototype.toggleDisplayDeeper = function (node) {
+    if (!node.data.depth) {
+        return;
+    }
+
+    var doShow = true;
+
+
+    function filterNodes4Remove(adjacency, node, nodeSet, nodes4Remove) {
+        if (adjacency[node.id]) {
+            for (var relatedId in adjacency[nodeId]) {
+                var relatedNode = nodeSet[relatedId];
+                if (relatedNode.data.depth > node.data.depth) {
+                    //收集这个node, 以供删除
+                    nodes4Remove[node.id] = node;
+                    //递归搜索满足条件的下一级node
+                    filterNodes4Remove(adjacency, node, nodeSet, nodes4Remove);
+                }
+            }
+        }
+
+        return nodes4Remove;
+    }
+
+
+    var nodes4Remove = {};
+    /*graph.adjacency和graph.reverseAdjacency中一旦找到了关联的低级node,
+    则: 1.本次任务是要隐藏; 2.干掉遇到的所有node*/
+    filterNodes4Remove(this.context.graph.adjacency, node, this.context.graph.nodeSet, nodes4Remove);
+    filterNodes4Remove(this.context.graph.reverseAdjacency, node, this.context.graph.nodeSet, nodes4Remove);
+
+    if (Object.keys(nodes4Remove).length > 0) {
+        doShow = false;
+        //批量删除
+        for (var node in nodes4Remove) {
+            this.context.graph.removeNode(node);
+        }
+    }
+
+
+    //本次执行显示任务
+    if (doShow) {
+        //去缓存里找下一级关联节点
+
+
+        //若没有缓存 -> 请求数据
+    }
+
+
     var oneLevelNeighborEdges = {}; //存储一度边
     //TODO 根据当前节点id, 获取关联的所有一度关系数据
     $.getJSON(url, {nodeId: nodeId}, function (dbclickGetData) {
@@ -226,9 +280,8 @@ KgAnti.prototype.initGraph = function () {
 
     var data = this.context.data;
     var graph = this.context.graph;
-    //todo
-    var dbClickUrl = (this.context.dbClickUrl) !== undefined ? this.context.dbClickUrl : '';
-    if (data === undefined || data == null) {
+
+    if (data == null) {
         return;
     }
 
@@ -254,13 +307,15 @@ KgAnti.prototype.initGraph = function () {
             nodeData.radius = 35;
             //节点类型
             nodeData.type = nodeData.nodeType;
-            // 添加双击事件, 展示/收起周边节点
-            nodeData.ondoubleclick = function () {
-                //判断当前节点是否显示了全部周边节点-->然后据此展开还是收缩
-                toggleNeighborShow(dbClickUrl, nodeData.id);
-            };
 
             var node = new Springy.Node(nodeKey, nodeData);
+
+            // 添加双击事件, 展示/收起周边节点
+            node.data.ondoubleclick = function () {
+                //判断当前节点是否显示了全部周边节点-->然后据此展开还是收缩
+                this.toggleDisplayDeeper(node);
+            };
+
             graph.addNode(node);
 
             //将节点类型记录下来, 用于页面显示  nodeType:[nodeId,...]

@@ -29,10 +29,13 @@
             var searchContent = $('#searchContent').val();
 
             var kgAnti = new KgAnti();
+            //配置参数
             kgAnti.configure({
-                //graph: graph,
+                //canvas容器
+                canvasContainer:$('#springydemo'),
                 nodeTypeContainer: $('#nodeTypeContainer'),  //配置存放节点按类别切换显示的开关按钮容器
                 edgeTypeContainer: $('#edgeTypeContainer'),   //配置存放边类别的开关按钮容器
+                //单击节点事件
                 nodeSelected:function (node, e) {
                     $('#showInfo').html(JSON.stringify(node.data));
                     //                alert('Node selected: ' + JSON.stringify(node.data));
