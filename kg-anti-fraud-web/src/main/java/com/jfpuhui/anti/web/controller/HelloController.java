@@ -1,8 +1,6 @@
 package com.jfpuhui.anti.web.controller;
 
-import com.jfpuhui.anti.mapper.EmployeeMapper;
-import com.jfpuhui.anti.pojo.Employee;
-import com.jfpuhui.anti.service.CustRelationshipService;
+import com.jfpuhui.anti.service.GraphService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -22,28 +20,28 @@ import java.util.List;
 public class HelloController {
 
     @Autowired
-    private CustRelationshipService custRelationshipService;
+    private GraphService custRelationshipService;
     @RequestMapping(value = { "hello" })
     @ResponseBody
     public String hello(){
         //调用服务
         log.debug("进入hello...");
 
-        custRelationshipService.selectAll();
+//        custRelationshipService.selectAll();
 
         return "success";
     }
 
 
-    @Autowired
-    private EmployeeMapper employeeMapper;
-
-    @RequestMapping(value = {"test_mysql"})
-    public String testMysql(){
-        log.debug("测试mysql");
-        List<Employee> employees = employeeMapper.queryAll();
-        System.out.println(employees);
-        return "ok";
-    }
+//    @Autowired
+//    private EmployeeMapper employeeMapper;
+//
+//    @RequestMapping(value = {"test_mysql"})
+//    public String testMysql(){
+//        log.debug("测试mysql");
+//        List<Employee> employees = employeeMapper.queryAll();
+//        System.out.println(employees);
+//        return "ok";
+//    }
 
 }

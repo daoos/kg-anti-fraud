@@ -9,11 +9,43 @@ package com.jfpuhui.anti.pojo.util;
 public class Edge {
 
     private Long id;
-    private Long source;
-    private Long target;
+    /**
+     * source node ID
+     */
+    private String source;
+    /**
+     * target node ID
+     */
+    private String target;
     private String content;
-    private String content_type;
-    private Integer hasarrow;
+    private String contentType;
+    /**
+     * 是否右箭头: true-有, false-无
+     */
+    private Boolean directional;
+    /**
+     * 深度属性: 0-核,1-第一度,2-第二度,...
+     */
+    private Integer depth;
+
+    public Integer getDepth() {
+        return depth;
+    }
+
+    public void setDepth(Integer depth) {
+        this.depth = depth;
+    }
+
+    public Edge() {}
+
+    public Edge(Long id, String source, String target, String content, String contentType, Boolean directional) {
+        this.id = id;
+        this.source = source;
+        this.target = target;
+        this.content = content;
+        this.contentType = contentType;
+        this.directional = directional;
+    }
 
     public Long getId() {
         return id;
@@ -23,19 +55,19 @@ public class Edge {
         this.id = id;
     }
 
-    public Long getSource() {
+    public String getSource() {
         return source;
     }
 
-    public void setSource(Long source) {
+    public void setSource(String source) {
         this.source = source;
     }
 
-    public Long getTarget() {
+    public String getTarget() {
         return target;
     }
 
-    public void setTarget(Long target) {
+    public void setTarget(String target) {
         this.target = target;
     }
 
@@ -47,22 +79,21 @@ public class Edge {
         this.content = content;
     }
 
-    public String getContent_type() {
-        return content_type;
+    public String getContentType() {
+        return contentType;
     }
 
-    public void setContent_type(String content_type) {
-        this.content_type = content_type;
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 
-    public Integer getHasarrow() {
-        return hasarrow;
+    public Boolean getDirectional() {
+        return directional;
     }
 
-    public void setHasarrow(Integer hasarrow) {
-        this.hasarrow = hasarrow;
+    public void setDirectional(Boolean directional) {
+        this.directional = directional;
     }
-
 
     /**edge.id一致即表示为同一条边
      * @param o

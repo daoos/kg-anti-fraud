@@ -1,0 +1,93 @@
+/* 主体公共样式 */
+* {
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+html,
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+div,
+dl,
+dt,
+dd,
+ul,
+ol,
+li,
+p,
+blockquote,
+pre,
+hr,
+figure,
+table,
+caption,
+th,
+td,
+form,
+fieldset,
+legend,
+input,
+button,
+textarea,
+menu {
+  margin: 0;
+  padding: 0;
+}
+ul li,
+ol li {
+  list-style: none;
+}
+body {
+  background: #efeff4;
+  font-family: "microsoft yahei";
+  font-size: 0.4rem;
+  overflow: auto;
+}
+a {
+  color: #333333;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: none;
+}
+img {
+  display: block;
+}
+input::-webkit-input-placeholder {
+  color: #CCCCCC;
+}
+input:-moz-placeholder {
+  color: #CCCCCC;
+}
+input::-moz-placeholder {
+  color: #CCCCCC;
+}
+input:-ms-input-placeholder {
+  color: #CCCCCC;
+}
+input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-user-select: text;
+  -webkit-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+button {
+  border: 0 none;
+}
+.clearfix:after {
+  height: 0;
+  content: " ";
+  display: block;
+  overflow: hidden;
+  clear: both;
+}

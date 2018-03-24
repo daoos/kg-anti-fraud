@@ -1,0 +1,330 @@
+<html>
+<!--接受json格式为key-value形式-->
+<head>
+    <meta charset="UTF-8">
+</head>
+<style>
+    .shader{
+        position: absolute;background-color: rgba(0, 0, 0, 0.45);color:#fff;left:200px;top:300px;display: none;border-radius: 8px;
+        padding: 0 15px;width: 200px;
+    }
+    .shader ul{
+        margin:0;padding:0;
+    }
+    .shader ul li{
+        list-style: none;
+        height: 30px;
+        line-height: 30px;
+        font-size: 16px;
+        color: #fff;
+    }
+    .shader ul li span{
+        padding-right: 10px;
+    }
+</style>
+
+<script src="./js/jquery.min.js"></script>
+<script src="./js/springy.js"></script>
+<script src="./js/springyui.js"></script>
+<script>
+
+    //START: 方法区
+    /**根据contentType映射出颜色配置*/
+    function mapColorFromContentType(contentType) {
+        //TODO
+        return "#990677";
+    }
+
+
+    /**双击连通or断开此节点和周边一度节点的边
+     * 双击图中节点,携带节点id去后台获取对应的一度点,边数据*/
+    var toggleNeighborShow = function (url, nodeId, args) {
+        var oneLevelNeighborEdges = {}; //存储一度边
+        //TODO 根据当前节点id, 获取关联的所有一度关系数据
+        $.getJSON(url, {nodeId: nodeId}, function (dbclickGetData) {
+            //start: 根据当前节点的id从后台获取其周边一度关联节点数据  --!根据当前节点id筛选之后的!
+            var dbclickGetData = JSON.stringify(dbclickGetData);
+            var dbclickGetData = JSON.parse(dbclickGetData);
+
+
+            //从后台传入的数据集中, 获取所有一度关联的边
+            dbclickGetData.edges.forEach(function (e) {
+                //一度关联节点: sourceId一致或targetId一致
+                if (e.source == nodeId || e.target == nodeId) {
+                    oneLevelNeighborEdges[e.id] = e;
+                }
+            });
+
+            //当前节点关联的真实边数(来自数据库)
+            var oneLevelNeighborEdgesNum = Object.getOwnPropertyNames(oneLevelNeighborEdges).length;
+            //end
+
+            //计算当前图中此节点与一度周边节点相连接的边数
+            var count = 0;
+            var adjacency = args.graph.adjacency;
+            for (var source in adjacency) {
+                //sourceId 一致, 其上所有targetId包括在内
+                if (source == nodeId) {
+                    //获取source:{key:value,....}key的个数, 即targetId的个数
+                    count += Object.getOwnPropertyNames(adjacency[source]).length;
+                    //sourceId一致说明肯定是周边节点
+                } else {
+                    //否则, 需要注意判断targetId是否一致, 若是, 则也是属于周边节点
+                    for (var target in adjacency[source]) {
+                        if (target == nodeId) {
+                            count++;
+                        }
+                    }
+                }
+            }
+
+            //比较实际变数和图中当前显示的变数
+            if (count < oneLevelNeighborEdgesNum) {
+                //说明当前为显示全部一度变数-->全部展示出来
+                args.data = dbclickGetData;
+                initGraph(args);   //'递归'调用
+            } else {
+                //说明当前一度变数处于全部显示状态-->删除(这里仅删除边)
+                if (oneLevelNeighborEdges != null && oneLevelNeighborEdges.length > 0) {
+                    oneLevelNeighborEdges.forEach(function (t) {
+                        graph.removeEdge(t);
+                    })
+                }
+            }
+
+        })
+
+    };
+
+
+    /**初始化图形  将查到的所有节点和边全部展示
+     * @param args graph:图对象; data:数据集nodes:[]  edges:[]*/
+    function initGraph(args) {
+        if (typeof args !== "object") {
+            throw new Error("Argument must be type of [object]");
+        }
+        var data = args.data;
+        var graph = args.graph;
+        var dbClickUrl = args.dbClickUrl;
+        if (data === undefined || data == null) {
+            return;
+        }
+
+        /*
+        * 节点id和边id为后台传入的id
+        *
+        * */
+        var nodes = data.nodes;
+        if (nodes != null) {
+            for (var nodeKey in nodes) {
+
+                //建立节点
+                var nodeData = nodes[nodeKey];
+                nodeData.label = nodes[nodeKey].name;     //可灵活指定用什么字段作为label
+                //背景填充色
+                nodeData.fillColor='rgba(90,25,222,0.25)';
+                nodeData.color="#993366";
+                //节点半径
+                nodeData.radius = 60;
+                //字体大小
+                nodeData.font = "32px Verdana, sans-serif";
+                //
+                var image = new Image();
+                image.src = "./image/node.jpg";
+                image.height = "50";
+                image.width = "50";
+                nodeData.image= image;
+                // 添加双击事件, 展示/收起周边节点
+                nodeData.ondoubleclick = function () {
+                    //判断当前节点是否显示了全部周边节点-->然后据此展开还是收缩
+                    toggleNeighborShow(dbClickUrl, nodeData.id, args);
+                };
+
+                var node = new Springy.Node(nodeKey, nodeData);
+                graph.addNode(node);
+
+                //将节点类型记录下来, 用于页面显示  nodeType:[nodeId,...]
+                if (!(nodeData.nodeType in args.nodeTypeSet)) {
+                    args.nodeTypeSet[nodeData.nodeType] = [];
+                }
+                if ($.inArray(nodeKey, args.nodeTypeSet[nodeData.nodeType]) == -1) {    //去重
+                    args.nodeTypeSet[nodeData.nodeType].push(nodeKey);
+                }
+            }
+
+
+        }
+
+        var edges = data.edges;
+        if (edges != null) {
+            for (var edgeKey in edges) {
+                //建立边
+                var edgeData = edges[edgeKey];
+                edgeData.color = mapColorFromContentType(edgeData.contentType);
+                edgeData.label = edgeData.contentType + "\n" + edgeData.content;      //可根据需求灵活配置边上显示的内容
+                //颜色
+                edgeData.color = "#C1FFC7";
+                //是否为有向边
+//                edgeData.directional = false;
+                //文字大小
+                edgeData.font = "40px Verdana, sans-serif";
+
+                //根据节点id在上述已经创建的node中找出node
+                var source = graph.nodeSet[edgeData.source];
+                var target = graph.nodeSet[edgeData.target];
+
+
+                //vid 由 content和contentType取md5唯一确定出的边
+                var edge = new Springy.Edge(edgeKey, source, target, edgeData);
+                graph.addEdge(edge);
+
+                //将边类型记录下来 <edgeType:[edgeId,....]>
+                if (!(edgeData.contentType in args.edgeTypeSet)) {
+                    args.edgeTypeSet[edgeData.contentType] = [];
+                }
+                if ($.inArray(edgeKey, args.edgeTypeSet[edgeData.contentType]) == -1) {
+                    args.edgeTypeSet[edgeData.contentType].push(edgeKey);
+                }
+            }
+        }
+
+    }
+
+
+    /**根据复选框状态切换被选中类别的显示或隐藏*/
+    function toggleDisplayByType(htmlLabel, graphType) {
+        var flag = htmlLabel[0].checked;
+        var selectedType = htmlLabel.val();
+        switch (graphType) {
+            case 'node':
+                //取出全局变量graphArgs中的 *TypeSet
+                var nodeIds = graphArgs.nodeTypeSet[selectedType];
+                console.log(graphArgs.nodeTypeSet);
+                console.log(typeof nodeIds);
+                if (flag) {  //要显示
+                    //根据nodeId 在 Springy.graphCache中找到对应点, 然后恢复显示
+                    graph.recoverNodeByIds(nodeIds);
+                } else {  //要隐藏
+                    //批量删除节点
+                    graph.removeNodeByIds(nodeIds);
+                }
+                break;
+            case 'edge':
+                //取出全局变量graphArgs中的 *TypeSet
+                var edgeIds = graphArgs.edgeTypeSet[selectedType];
+                console.log(graphArgs.edgeTypeSet);
+                console.log(typeof edgeIds);
+                if (flag) {  //要显示
+                    //根据nodeId 在 graph.graphCache中找到对应点, 然后恢复显示
+                    graph.recoverEdgeByIds(edgeIds);
+                } else {  //要隐藏
+                    //批量删除节点
+                    graph.removeEdgeByIds(edgeIds);
+                }
+                break;
+            default:
+                throw new Error("node? edge?");
+        }
+
+
+    }
+
+    /**根据节点类别或边类别生成复选框列表的html
+     * @param typeSet 节点或边类型set
+     * @param graphType 'node'  'edge'*/
+    function genCategoryHtml(typeSet, graphType) {
+        console.log(typeof graphType);
+        var html = '';
+        for (var type in typeSet) {
+            html += '<input class="'+graphType+'" type="checkbox" checked="checked" onclick="toggleDisplayByType($(this),\'' + graphType + '\')" value="' + type + '"/>' + type
+        }
+        return html;
+    }
+
+    //END: 方法区
+
+
+    //START: 业务代码
+
+    //全局变量
+    var graph = new Springy.Graph();
+    var graphArgs = {
+        graph: graph,
+        data: {},
+        dbClickUrl: "../json/data22.json",
+        nodeTypeSet: {},      //<nodeType:[nodeId01,nodeId02,...]> TODO:springy.js中添加方法, 根据nodeId删除节点
+        edgeTypeSet: {}
+    };
+
+
+    $.getJSON("./json/data21.json", function (data) {
+        //获取数据
+        var json = JSON.stringify(data);
+        var data = JSON.parse(json);
+        graphArgs.data = data;
+        //初始化图形  将查到的所有节点和边全部展示
+        initGraph(graphArgs);
+
+
+        //根据nodeTypeSet中的nodeType显示复选框列表
+        var nodeTypeHtml = genCategoryHtml(graphArgs.nodeTypeSet, "node");
+        var edgeTypeHtml = genCategoryHtml(graphArgs.edgeTypeSet, 'edge');
+
+        $('#nodeTypes').html(nodeTypeHtml);
+        $('#edgeTypes').html(edgeTypeHtml);
+    });
+
+
+    jQuery(function () {
+        var springy = window.springy = jQuery('#springydemo').springy({
+            graph: graph,
+            nodeSelected: function (node,e) {
+                console.log(e);
+                $('#showInfo').html(JSON.stringify(node.data));
+//                alert('Node selected: ' + JSON.stringify(node.data));
+                //$('body').append('<div style="width: 200px;height: 100px;background: #333;margin-left:'+e.pageX+'margin-top:"'++'";></div>');
+                //$('.shader').html(JSON.stringify(node.data)).show().css({"left":e.pageX+10+"px","top":e.pageY+10+"px"});
+            },
+
+            nodeFont: "20px Verdana, sans-serif",
+            edgeFont: "18px Verdana, sans-serif"
+        });
+        var layout = new Springy.Layout.ForceDirected(graph, 640, 480.0, 0.5);
+        console.log(layout.graph.nodes);
+    });
+    //END: 业务代码
+
+
+</script>
+
+
+
+
+
+<body style="position: relative;">
+<!--弹层-->
+<div class="shader">
+    <ul>
+        <li><span>id</span><span>val</span></li>
+        <li><span>id</span><span>val</span></li>
+    </ul>
+</div>
+<!--end-->
+<!--<canvas id="springydemo" width="1000" height="600"/>-->
+<div>
+    信息展示:<span id="showInfo"></span>
+</div>
+<div>
+    <!--边类别:<input id="showAllEdgeType" type="checkbox"/>全部-->
+    点类别:
+    <input id="checkAllNodeType" type="checkbox" checked="checked" />全选
+    <div id="nodeTypes"></div>
+    边类别:
+    <input id="checkAllEdgeType" type="checkbox" checked="checked" />全选
+    <div id="edgeTypes"></div>
+</div>
+<canvas id="springydemo" width="2000px" height="1200px"
+        style="margin-left:-300px;margin-top:-300px;transform:scale(0.5,0.5); -webkit-transform:scale(0.5,0.5);"/>
+
+</body>
+</html>

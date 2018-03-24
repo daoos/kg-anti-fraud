@@ -1,9 +1,118 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.jfpuhui.anti.mapper.CustRelationshipMapper">
+    <resultMap id="BaseResultMap" type="com.jfpuhui.anti.pojo.CustRelationship">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="u_cert_id" property="uCertId"/>
+        <result column="u_cert_no" property="uCertNo"/>
+        <result column="v_cert_id" property="vCertId"/>
+        <result column="v_cert_no" property="vCertNo"/>
+        <result column="content" property="content"/>
+        <result column="content_type" property="contentType"/>
+        <result column="vid" property="vid"/>
+        <result column="relation_type" property="relationType"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
 
     <!--查询所有-->
-    <select id="selectAll" resultType="CustRelationship">
-        SELECT * FROM kg_cust_relationship
+    <select id="selectAll1DRelByCertNo" resultMap="BaseResultMap">
+      SELECT * FROM kg_cust_relationship WHERE u_cert_no=#{certNo} or v_cert_no= #{certNo};
     </select>
+
+
+    <!--SELECT *-->
+    <!--FROM kg_cust_relationship a-->
+    <!--WHERE EXISTS-->
+    <!--(-->
+    <!--SELECT *-->
+    <!--FROM-->
+    <!--(SELECT v_cert_id node_id-->
+    <!--FROM kg_cust_relationship rel-->
+    <!--WHERE  EXISTS(SELECT null FROM (SELECT cert_id-->
+    <!--FROM kg_anti_fraud.kg_cust_property-->
+    <!--WHERE cert_no='110101195607302022') certids WHERE certids.cert_id=rel.u_cert_id)-->
+    <!--UNION-->
+    <!--SELECT u_cert_id node_id-->
+    <!--FROM kg_cust_relationship rel-->
+    <!--WHERE  EXISTS(SELECT null FROM (SELECT cert_id-->
+    <!--FROM kg_anti_fraud.kg_cust_property-->
+    <!--WHERE cert_no='110101195607302022') certids WHERE certids.cert_id=rel.v_cert_id)-->
+    <!--) ids-->
+    <!--WHERE ids.node_id = a.u_cert_id OR ids.node_id = a.v_cert_id-->
+    <!--)-->
+
+    <!--
+    根据身份证号查询所有二度关系-->
+    <select id="selectAll2DRelByCertNo" parameterType="string" resultMap="BaseResultMap">
+
+        SELECT *
+        FROM kg_cust_relationship a
+        WHERE EXISTS
+        (
+            SELECT *
+            FROM
+              (SELECT v_cert_id node_id
+               FROM kg_cust_relationship rel
+               WHERE EXISTS(SELECT NULL
+                            FROM (SELECT cert_id
+                                  FROM kg_anti_fraud.kg_cust_property
+                                  WHERE cert_no = #{certNo}) certids
+                            WHERE certids.cert_id = rel.u_cert_id)
+               UNION
+               SELECT u_cert_id node_id
+               FROM kg_cust_relationship rel
+               WHERE EXISTS(SELECT NULL
+                            FROM (SELECT cert_id
+                                  FROM kg_anti_fraud.kg_cust_property
+                                  WHERE cert_no = #{certNo}) certids
+                            WHERE certids.cert_id = rel.v_cert_id)
+              ) ids
+            WHERE ids.node_id = a.u_cert_id OR ids.node_id = a.v_cert_id
+        )
+    </select>
+
+
+    <!--
+    根据给定身份证号查关系, 入参: set, list-->
+    <select id="selectRelByGivenCertNos" resultMap="BaseResultMap">
+
+        SELECT * FROM kg_cust_relationship WHERE u_cert_no in
+        <foreach collection="set" index="index" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        UNION  <!-- 不能有all, 那样会有重复行 -->
+        SELECT * FROM kg_cust_relationship WHERE v_cert_no in
+        <foreach collection="set" index="index" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+
+    </select>
+
+
+
+
+
+    <!--
+    根据姓名查询所有身份证号-->
+    <select id="selectCertNosLikeName" parameterType="String" resultType="String">
+       SELECT cert_no FROM kg_cust_property WHERE name LIKE "%"#{_parameter}"%"
+    </select>
+
+    <!--
+    根据客户类型查询所有身份证号-->
+    <select id="selectCertNosByCustType" parameterType="Integer" resultType="String">
+       SELECT cert_no FROM kg_cust_property WHERE cust_type = #{_parameter}
+    </select>
+
+
+
+
+
+    <!--
+    select all core edge by vid-->
+    <select id="selectAll0DRelByVid" parameterType="String" resultMap="BaseResultMap">
+        SELECT * FROM kg_cust_relationship WHERE vid = #{_parameter}
+    </select>
+
+
 </mapper>

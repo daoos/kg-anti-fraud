@@ -44,18 +44,22 @@
     var Springy = {};
 
     var Graph = Springy.Graph = function () {
-        this.nodeSet = {};	//key:node.id, value:node
+        this.nodeSet = {};	//nodeId:node
         this.nodes = [];
         this.edges = [];	//存入 edge 们
-        this.adjacency = {};	//[source.id:[target.id:[edge]]
+        this.adjacency = {};	//{source.id:{target.id:[edge,...]}
+        this.reverseAdjacency = {};  //targetId->sourceId->[edge,....]
 
         this.nextNodeId = 0;
         this.nextEdgeId = 0;
         this.eventListeners = [];
 
+        /*点,边类型集合*/
+        this.nodeTypeSet = {}; //nodeType:{nodeId:node,....}
+        this.edgeTypeSet = {};
         /*lj+ 缓存图形数据, addNode(),addEdge()均会将新增的图形元素数据放入, remove*()操作则不删除这里面的数据
         * 只要 graph 不消失, 始终可以在这里找到曾经图形中显示过的点,边数据*/
-        this.graphCache = {nodes: {}, edges: {}};	//nodes:{<nodeId:node>,...}
+        this.graphCache = {nodeSet: {}, edgeSet: {}, adjacency: {}, reverseAdjacency: {}, nodeTypeSet: {}, edgeTypeSet: {}};	//nodes:{<nodeId:node>,...}
     };
 
     var Node = Springy.Node = function (id, data) {
@@ -80,14 +84,27 @@
     };
 
     Graph.prototype.addNode = function (node) {
-        if (!(node.id in this.nodeSet)) {	//I:判断当前 node 在 nodeSet中是否已有
+        if (!(node.id in this.nodeSet)) {	//判断当前 node 在 nodeSet中是否已有
             this.nodes.push(node);
         }
 
         this.nodeSet[node.id] = node;
 
-        //lj+ 将node缓存值 graphCache
-        this.graphCache.nodes[node.id] = node;
+        //lj+ 将node缓存到 graphCache
+        this.graphCache.nodeSet[node.id] = node;
+        //根据类型添加到nodeTypeSet中
+        if (node.data.type != null) {
+            if (!(node.data.type in this.nodeTypeSet)) {
+                this.nodeTypeSet[node.data.type] = {};
+            }
+            if(!(node.data.type in this.graphCache.nodeTypeSet)) {
+                this.graphCache.nodeTypeSet[node.data.type] = {};
+            }
+            
+            this.nodeTypeSet[node.data.type][node.id] = node;
+            this.graphCache.nodeTypeSet[node.data.type][node.id] = node;
+        }
+
 
         this.notify();
         return node;
@@ -114,14 +131,56 @@
 
         if (!exists) {
             this.edges.push(edge);
+            //lj+ 将edge缓存到 graphCache
+            this.graphCache.edgeSet[edge.id] = edge;
+            //根据类型归并到edgeTypeSet中
+            if (edge.data.type != null) {
+                if (!(edge.data.type in this.edgeTypeSet)) {
+                    this.edgeTypeSet[edge.data.type] = {};
+                }
+                if(!(edge.data.type in this.graphCache.edgeTypeSet)) {
+                    this.graphCache.edgeTypeSet[edge.data.type] = {};
+                }
+
+                this.edgeTypeSet[edge.data.type][edge.id] = edge;
+                this.graphCache.edgeTypeSet[edge.data.type][edge.id] = edge;
+            }
+
         }
 
+        /*
+        * LJ: 正向和反向同步, 现存和缓存同步*/
+        //正向
         if (!(edge.source.id in this.adjacency)) {
             this.adjacency[edge.source.id] = {};
         }
+        if (!(edge.source.id in this.graphCache.adjacency)) {
+            this.graphCache.adjacency[edge.source.id] = {};
+        }
+
         if (!(edge.target.id in this.adjacency[edge.source.id])) {
             this.adjacency[edge.source.id][edge.target.id] = [];
         }
+        if(!(edge.target.id in this.graphCache.adjacency[edge.source.id])){
+            this.graphCache.adjacency[edge.source.id][edge.target.id] = [];
+            }
+
+        //反向
+        if (!(edge.target.id in this.reverseAdjacency)) {
+            this.reverseAdjacency[edge.target.id] = {};
+        }
+        if(!(edge.target.id in this.graphCache.reverseAdjacency)) {
+            this.graphCache.reverseAdjacency[edge.target.id] = {};
+
+        }
+
+        if (!(edge.source.id in this.reverseAdjacency[edge.target.id])) {
+            this.reverseAdjacency[edge.target.id][edge.source.id] = [];
+        }
+        if (!(edge.source.id in this.graphCache.reverseAdjacency[edge.target.id])) {
+            this.graphCache.reverseAdjacency[edge.target.id][edge.source.id] = [];
+        }
+
 
         exists = false;	//即使传入的 edge 在 edges 中已有, 也要判断内部的source和target有没有这个边id, 没有, 补上, 可能图形中就显示出来这个边
         this.adjacency[edge.source.id][edge.target.id].forEach(function (e) {
@@ -130,12 +189,42 @@
             }
         });
 
+        //保证adjacency和edges信息一致
         if (!exists) {
             this.adjacency[edge.source.id][edge.target.id].push(edge);
-
-            //lj+ 将edge缓存到 graphCache
-            this.graphCache.edges[edge.id] = edge;
         }
+
+        exists = false;
+        this.reverseAdjacency[edge.target.id][edge.source.id].forEach(function (e) {
+            if (edge.id === e.id) {
+                exists = true;
+            }
+        });
+        if (!exists) {
+            this.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
+            //this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
+        }
+
+        //Note: 若是恢复的边则会导致重复添加至缓存, 所以依然要判断缓存的中是已有这条边
+        exists = false;
+        this.graphCache.adjacency[edge.source.id][edge.target.id].forEach(function (e) {
+            if (edge.id === e.id) {
+                exists = true;
+            }
+        });
+        if (!exists) {
+            this.graphCache.adjacency[edge.source.id][edge.target.id].push(edge);
+        }
+        exists=false;
+        this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].forEach(function (e) {
+            if (edge.id === e.id) {
+                exists=true;    
+            }
+        });
+        if(!exists) {
+            this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
+        }
+
 
         this.notify();
         return edge;
@@ -235,6 +324,10 @@
                 this.nodes.splice(i, 1);
             }
         }
+        //nodeTypeSet中对应的node也要删除
+        if (node.data.type != null) {
+            delete  this.nodeTypeSet[node.data.type][node.id]
+        }
 
         this.detachNode(node);
     };
@@ -255,57 +348,74 @@
     Graph.prototype.removeEdge = function (edge) {
         for (var i = this.edges.length - 1; i >= 0; i--) {
             if (this.edges[i].id === edge.id) {
-                this.edges.splice(i, 1);	//若edges中有传入edge.id. 则删除之
+                this.edges.splice(i, 1);	//若edges中有传入的edge. 则删除它
             }
         }
 
-        for (var x in this.adjacency) {
-            for (var y in this.adjacency[x]) {
-                var edges = this.adjacency[x][y];
+        //封装
+        function removeAdjacency(adjacency) {
+            for (var x in adjacency) {
+                for (var y in adjacency[x]) {
+                    var edges = adjacency[x][y];
 
-                for (var j = edges.length - 1; j >= 0; j--) {
-                    if (this.adjacency[x][y][j].id === edge.id) {
-                        this.adjacency[x][y].splice(j, 1);
+                    for (var j = edges.length - 1; j >= 0; j--) {
+                        if (adjacency[x][y][j].id === edge.id) {
+                            adjacency[x][y].splice(j, 1);
+                        }
+                    }
+
+                    // Clean up empty edge arrays
+                    if (adjacency[x][y].length == 0) {
+                        delete adjacency[x][y];
                     }
                 }
 
-                // Clean up empty edge arrays
-                if (this.adjacency[x][y].length == 0) {
-                    delete this.adjacency[x][y];
+                // Clean up empty objects
+                if (isEmpty(adjacency[x])) {
+                    delete adjacency[x];
                 }
             }
-
-            // Clean up empty objects
-            if (isEmpty(this.adjacency[x])) {
-                delete this.adjacency[x];
-            }
         }
+
+        removeAdjacency(this.adjacency);
+        removeAdjacency(this.reverseAdjacency);
+
+        //edgeTypeSet对应的edge也要删除
+        if (edge.data.type != null) {
+            delete  this.edgeTypeSet[edge.data.type][edge.id];
+        }
+
 
         this.notify();
     };
 
     /**批量删除点
      * @author LJ*/
-    Graph.prototype.removeNodeByIds = function (nodeIds) {
-        for (var i = 0; i < nodeIds.length; i++) {
-            var nodeId = nodeIds[i];
-            var node = this.graphCache.nodes[nodeId];
-            if (node != null) {
-                this.removeNode(node);
-            }
-        }
+    Graph.prototype.removeNodeByType = function (nodeTypeName) {
+        //在当前图中取出本类别所有node
+        this.removeByType(nodeTypeName, this.nodeTypeSet, "node");
     };
 
     /**批量删除边
      * @author LJ*/
-    Graph.prototype.removeEdgeByIds = function (edgeIds) {
-        for (var i = 0; i < edgeIds.length; i++) {
-            var edgeId = edgeIds[i];
-            var edge = this.graphCache.edges[edgeId];
-            if (edge != null) {
-                this.removeEdge(edge);
+    Graph.prototype.removeEdgeByType = function (edgeTypeName) {
+        this.removeByType(edgeTypeName, this.edgeTypeSet, "edge");
+    };
+
+    Graph.prototype.removeByType = function (typeName, typeSet, graphType) {
+        //在当前图中取出本类别所有node / edge 逐一删除
+        for (var neId in typeSet[typeName]) {
+            var ne = typeSet[typeName][neId];
+            switch (graphType) {
+                case "node":
+                    this.removeNode(ne);
+                    break;
+                case "edge":
+                    this.removeEdge(ne);
             }
         }
+        //当前类别中的node / edge全部干掉了, 则本类别也要干掉
+        delete typeSet[typeName];
     };
 
 
@@ -313,41 +423,119 @@
      * @author LJ
      * @param nodeIds nodeId数组
      */
-    Graph.prototype.recoverNodeByIds = function (nodeIds) {
-        for (var i = 0; i < nodeIds.length; i++) {
-            var nodeId = nodeIds[i];
-            var node = this.graphCache.nodes[nodeId];
-            if (node != null) {
-                this.addNode(node);
+// Graph.prototype.recoverNodeByIds = function (nodeIds) {
+//     for (var i = 0; i < nodeIds.length; i++) {
+//         var nodeId = nodeIds[i];
+//         var node = this.graphCache.nodeSet[nodeId];
+//         if (node != null) {
+//             this.addNode(node);
+//
+//             /*恢复点的同时还要恢复边,
+//             * 恢复的边必须在当前graph中处于显示状态, i.e.在edges和adjacency中
+//             * 根据当前node.id, 寻找对应边, 包括source.id和target.id
+//             * 恢复边时要判断当前边的source和target在当前graph中是否处于显示状态, 没有显示则不能显示此边, 不然会出现有边无点的尴尬*/
+//             for (var i = 0; i < this.edges.length; i++) {
+//
+//                 try {
+//                     var findId = null;
+//                     if (this.edges[i].source.id === nodeId) {
+//                         findId = this.edges[i].target.id;
+//                     }
+//                     if (this.edges[i].target.id === nodeId) {
+//                         findId = this.edges[i].source.id;
+//                     }
+//                     //当前边有另一端点, 才会add进去
+//                     if (findId !== null && this.nodeSet[findId] !== null) {
+//                         this.addEdge(this.graphCache.edgeSet[edgeKey]);
+//                     }
+//
+//                 } catch (e) {
+//                 }
+//
+//             }
+//         }
+//     }
+// };
 
-                /*恢复点的同时还要恢复便,
-                * 根据当前node.id, 寻找对应边, 包括source.id和target.id*/
-                for (var edgeKey in this.graphCache.edges) {
-                    try {
-                        //遍历换粗中的所有边, 找到和当前节点关联的边(i.e.起/止点为当前节点)
-                        if (this.graphCache.edges[edgeKey].source.id === nodeId ||
-                            this.graphCache.edges[edgeKey].target.id === nodeId) {
-                            this.addEdge(this.graphCache.edges[edgeKey]);
+    /**恢复指定类型的点*/
+    Graph.prototype.recoverNodeByType = function (nodeTypeName) {
+        /*不论当前类别对应的点或边是否最终成功显示, 但当前要恢复的类别只要是合法的类别(i.e.在缓存中能够找到到),
+        * 就应当将当前类别添加到 *typeSet的字段中*/
+        if (nodeTypeName in this.graphCache.nodeTypeSet) {
+            //说明当前类型是一开始图形初始化时就有的类型, 而不是后期随意变动的类型
+            this.nodeTypeSet[nodeTypeName] = {};
+        }
+
+        //1.根据类型名取出对应的所有node list
+        for (var nodeId in this.graphCache.nodeTypeSet[nodeTypeName]) {
+            var node = this.graphCache.nodeTypeSet[nodeTypeName][nodeId];
+            //2.遍历node list, 取出node关联的边, 若边的端点都在显示状态, 且这条边属于显示类别中, 则添加对应的边
+            this.addNode(node);
+            smartAddAdjacentEdge(this.graphCache.adjacency, this);
+            smartAddAdjacentEdge(this.graphCache.reverseAdjacency, this);
+        }
+
+        function smartAddAdjacentEdge(adjacency, graph) {
+            for (var nodeKey in adjacency[node.id]) {
+                //target node不在在显示状态, 则此边不显示
+                if (nodeKey in graph.nodeSet) {
+                    //target node在显示状态, 则遍历显示边, 但边的类型要属于显示
+                    adjacency[node.id][nodeKey].forEach(function (edge) {
+                        if (edge.data.type != null) {
+                            if (edge.data.type in graph.edgeTypeSet) {
+                                console.log("graph.edgeTypeSet:");
+                                console.log(graph.edgeTypeSet);
+                                graph.addEdge(edge);
+                            }
+                        }else { //若边没有type属性, 则不受类型开关限制, 始终显示
+                            graph.addEdge(edge);
                         }
-                    } catch (e) {
-                    }
-
+                    })
                 }
             }
         }
-    }
+
+    };
 
     /**
      * @author LJ*/
-    Graph.prototype.recoverEdgeByIds = function (edgeIds) {
-        for (var i = 0; i < edgeIds.length; i++) {
-            var edgeId = edgeIds[i];
-            var edge = this.graphCache.edges[edgeId];
-            if (edge != null) {
+// Graph.prototype.recoverEdgeByIds = function (edgeIds) {
+//     function hasEndPoints(edge, graph) {
+//         var flag = false;
+//         if (edge.source.id in graph.nodeSet && edge.target.id in graph.nodeSet) {
+//             flag = true;    //此边有起止端点
+//         }
+//         console.log(flag);
+//         return flag;
+//     }
+//
+//
+//     for (var i = 0; i < edgeIds.length; i++) {
+//         var hasEndPoint = false;
+//         var edgeId = edgeIds[i];
+//         var edge = this.graphCache.edgeSet[edgeId];
+//
+//         //恢复边前, 要判断此边有无端点, 没有则不恢复此边, 避免有边无点的尴尬
+//         if (edge != null && hasEndPoints(edge, this)) {
+//             this.addEdge(edge);
+//         }
+//     }
+// };
+
+    Graph.prototype.recoverEdgeByType = function (edgeTypeName) {
+        if (edgeTypeName in this.graphCache.edgeTypeSet) {
+            //说明当前类型是一开始图形初始化时就有的类型, 而不是后期随意变动的类型
+            this.edgeTypeSet[edgeTypeName] = {};
+        }
+
+        for (var edgeId in this.graphCache.edgeTypeSet[edgeTypeName]) {
+            var edge = this.graphCache.edgeTypeSet[edgeTypeName][edgeId];
+            if (edge.source.id in this.nodeSet && edge.target.id in this.nodeSet) {
                 this.addEdge(edge);
             }
         }
-    }
+
+    };
 
 
     /* Merge a list of nodes and edges into the current graph. eg.
@@ -411,7 +599,7 @@
         });
     };
 
-    // -----------
+// -----------
     var Layout = Springy.Layout = {};
     Layout.ForceDirected = function (graph, stiffness, repulsion, damping, minEnergyThreshold, maxSpeed) {
         this.graph = graph;
@@ -470,7 +658,7 @@
         return this.edgeSprings[edge.id];
     };
 
-    // callback should accept two arguments: Node, Point
+// callback should accept two arguments: Node, Point
     Layout.ForceDirected.prototype.eachNode = function (callback) {
         var t = this;
         this.graph.nodes.forEach(function (n) {
@@ -478,7 +666,7 @@
         });
     };
 
-    // callback should accept two arguments: Edge, Spring
+// callback should accept two arguments: Edge, Spring
     Layout.ForceDirected.prototype.eachEdge = function (callback) {
         var t = this;
         this.graph.edges.forEach(function (e) {
@@ -486,7 +674,7 @@
         });
     };
 
-    // callback should accept one argument: Spring
+// callback should accept one argument: Spring
     Layout.ForceDirected.prototype.eachSpring = function (callback) {
         var t = this;
         this.graph.edges.forEach(function (e) {
@@ -495,7 +683,7 @@
     };
 
 
-    // Physics stuff
+// Physics stuff
     Layout.ForceDirected.prototype.applyCoulombsLaw = function () {
         this.eachNode(function (n1, point1) {
             this.eachNode(function (n2, point2) {
@@ -552,7 +740,7 @@
         });
     };
 
-    // Calculate the total kinetic energy of the system
+// Calculate the total kinetic energy of the system
     Layout.ForceDirected.prototype.totalEnergy = function (timestep) {
         var energy = 0.0;
         this.eachNode(function (node, point) {
@@ -625,7 +813,7 @@
         this.updatePosition(timestep);
     };
 
-    // Find the nearest point to a particular position
+// Find the nearest point to a particular position
     Layout.ForceDirected.prototype.nearest = function (pos) {
         var min = {node: null, point: null, distance: null};
         var t = this;
@@ -641,7 +829,7 @@
         return min;
     };
 
-    // returns [bottomleft, topright]
+// returns [bottomleft, topright]
     Layout.ForceDirected.prototype.getBoundingBox = function () {
         var bottomleft = new Vector(-2, -2);
         var topright = new Vector(2, 2);
@@ -667,7 +855,7 @@
     };
 
 
-    // Vector
+// Vector
     var Vector = Springy.Vector = function (x, y) {
         this.x = x;
         this.y = y;
@@ -705,7 +893,7 @@
         return this.divide(this.magnitude());
     };
 
-    // Point
+// Point
     Layout.ForceDirected.Point = function (position, mass) {
         this.p = position; // position
         this.m = mass; // mass
@@ -717,7 +905,7 @@
         this.a = this.a.add(force.divide(this.m));
     };
 
-    // Spring
+// Spring
     Layout.ForceDirected.Spring = function (point1, point2, length, k) {
         this.point1 = point1;
         this.point2 = point2;
@@ -725,14 +913,14 @@
         this.k = k; // spring constant (See Hooke's law) .. how stiff the spring is
     };
 
-    // Layout.ForceDirected.Spring.prototype.distanceToPoint = function(point)
-    // {
-    // 	// hardcore vector arithmetic.. ohh yeah!
-    // 	// .. see http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment/865080#865080
-    // 	var n = this.point2.p.subtract(this.point1.p).normalise().normal();
-    // 	var ac = point.p.subtract(this.point1.p);
-    // 	return Math.abs(ac.x * n.x + ac.y * n.y);
-    // };
+// Layout.ForceDirected.Spring.prototype.distanceToPoint = function(point)
+// {
+// 	// hardcore vector arithmetic.. ohh yeah!
+// 	// .. see http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment/865080#865080
+// 	var n = this.point2.p.subtract(this.point1.p).normalise().normal();
+// 	var ac = point.p.subtract(this.point1.p);
+// 	return Math.abs(ac.x * n.x + ac.y * n.y);
+// };
 
     /**
      * Renderer handles the layout rendering loop
@@ -789,8 +977,8 @@
         this.layout.stop();
     };
 
-    // Array.forEach implementation for IE support..
-    //https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/forEach
+// Array.forEach implementation for IE support..
+//https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/forEach
     if (!Array.prototype.forEach) {
         Array.prototype.forEach = function (callback, thisArg) {
             var T, k;
@@ -827,4 +1015,5 @@
     };
 
     return Springy;
-}));
+}))
+;

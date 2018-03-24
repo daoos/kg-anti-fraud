@@ -1,0 +1,357 @@
+.aiMapbox{
+  background: #fff;
+  position:relative;
+}
+.aiMapboxl{
+  width: 100%;
+  height: 1000px;
+  padding-right: 350px;
+}
+.aiMapboxr{
+  height: 100%;
+  background: #ececec;
+  position: absolute;
+  z-index: 999;
+  top: 0;
+  right: 0;
+}
+.aiMapboxr-bar{
+  width: 40px;
+  height: 100%;
+  background: #999;
+  float: right;
+}
+.aiMapboxr-bar li{
+  height:40px;
+  width:40px;
+  color:#fff;
+  cursor: pointer;
+}
+.aiMapboxr-bar li:hover{
+  background-color: #666;
+}
+.aiMapboxr-cont{
+  width: 350px;
+  height: 100%;
+  background: #ececec;
+  float: left;
+  box-shadow: -1px 1px 2px #ccc;
+}
+.aiMapboxr-conttab{
+  width: 100%;
+  height: 35px;
+  line-height: 35px;
+  background: #fff;
+}
+.aiMapboxr-conttab li{
+  float: left;
+  width:33.33%;
+  text-align: center;
+  color:#1d83e3;
+  background-color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  border-right: solid 1px #297ce8;
+}
+.aiMapboxr-conttab li:last-child{
+  border-right:none;
+}
+.aiMapboxr-conttab li.active {
+  background-color: #1d83e3;
+  color:#fff;
+}
+.tab-contentper>ul>li{
+  //margin-bottom: 10px;
+}
+.tab-contentper>ul>li>div{
+  height:30px;
+  line-height: 30px;
+  background-color: #f4f5f7;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+.tab-contentper>ul>li>div>span{
+  float: right;
+}
+.tab-contentper>ul>li>div>span.arrowup{
+  background:url(../img/arrow.png) no-repeat center;
+  width: 30px;
+  transform:rotate(180deg);
+  display:inline-block;
+  height:30px;
+}
+.tab-contentper>ul>li>div>span.arrowdown{
+  background:url(../img/arrow.png) no-repeat center;
+  width: 30px;
+  transform:rotate(0deg);
+}
+.tab-contentper>ul>li>div>span.listitem-sub{
+  //width: 30px;
+}
+.tab-contentper>ul>li>ul{
+  //display:none;
+  background:#fff;
+
+}
+.tab-contentper>ul>li>ul>li{
+  height:30px;
+  color:#333;
+  line-height: 30px;
+  overflow:hidden;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+.tab-contentper>ul>li>ul>li>b{
+  float: right;
+  color:#333;
+  font-weight: normal;
+}
+
+.header-search{
+  width: 310px;
+  position: relative;
+  margin: 5px auto;
+  height: 80px;
+}
+.aisearch{
+  width: 100%;
+  height: 30px;
+  line-height: 30px;
+  border: solid 1px #a7a7a7;
+  font-size: 14px;
+  outline: none;
+  border-radius: 5px;
+  padding: 0 15px;
+  /* left: 120px; */
+  padding-left: ;
+  position: absolute;
+  right: -10px;
+  top: 22px;
+  width: 214px;
+}
+.searchimg{
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  position: absolute;
+  right: -5px;
+  top: 22px;
+  background: url(../img/search.png) no-repeat center center;
+}
+
+.tip-bg {
+  background-color: rgba(0, 0, 0, 0.3);
+  position: fixed;
+  top: 0;
+  z-index: 9998;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  z-index: 9999;
+}
+.confirm-tip {
+  padding: 20px 30px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 999991;
+  text-align: center;
+  background: #fff;
+  border-radius: 5px;
+}
+.confirm-tip-cont > div, .alert-tip-cont > div {
+  line-height: 30px;
+  font-size: 16px;
+  color: #000;
+  margin-bottom: 10px;
+}
+.confirm-tip-no, .confirm-tip-yes, .alert-tip-btn {
+  width: 110px;
+  height: 34px;
+  border-radius: 5px;
+  background: #1c8cdd;
+  border: none;
+  color: #fff;
+  font-size: 16px;
+}
+.confirm-tip-no {
+  background: #fff;
+  color: #333;
+  border: 1px solid #eee;
+}
+/* 下拉 */
+.choice{
+  width: 106px;
+  position:absolute;
+  left:0;
+    //background: #fff;
+    top: 22px;
+  }
+.widthSelect {
+  border: 1px solid #ccc;
+  display: inline-block;
+  height: 32px;
+  width: 70px;
+  text-align: center;
+  line-height: 32px;
+  border-radius: 5px 0 0 5px;
+  top: 20px;
+}
+.choice .widthArrow {
+  margin-left: -5px;
+  border-radius: 0 5px 5px 0;
+  border: 1px solid #ccc;
+  border-left: 0;
+  display: inline-block;
+  background: url(../img/arrowdown.png) no-repeat center;
+  height: 32px;
+  width: 33px;
+  vertical-align: middle;
+  margin-top: -5px;
+  cursor: pointer;
+  background-color: #ddd;
+}
+.choice .slideDiv {
+  position: absolute;
+  border: 1px solid #ccc;
+  border-top: none;
+  text-align: left;
+  z-index: 999;
+  background: #fff;
+  width: 104px;
+  display: none;
+}
+.choice .slideDiv li {
+  line-height: 26px;
+  padding-left: 17px;
+  cursor: pointer;
+}
+.choice .slideDiv li:hover{
+  background:#ccc;
+}
+.aiMapboxl ul{
+  overflow: hidden;
+  padding-left: 20px;
+}
+.aiMapboxl ul li{
+  float: left;
+  margin-right:20px;
+  height:30px;
+  line-height: 30px;
+}
+.aiMapboxl ul li span{
+  margin-right: 10px;
+}
+.aiMapboxl .dot li span{
+  width:20px;
+  height:20px;
+  background:#0f0;
+  border-radius: 50%;
+  display: block;
+  float: left;
+  margin-top: 5px;
+}
+.aiMapboxl .line li{
+
+}
+.aiMapboxl .line li span{
+  width:20px;
+  height:2px;
+  background:#0f0;
+      display: block;
+    float: left;
+    margin-top: 14px;
+}
+.bgred{
+  background:red!important;
+}
+.bgblue{
+  background:blue!important;
+}
+.bgblack{
+  background:black!important;
+}
+.bg-grey{
+  background:#ccc!important;
+}
+.color-grey{
+  color:#ccc!important;
+}
+.alldot-check,.allline-check{
+  width:80px;
+  height:30px;
+  line-height: 30px;
+  float: left;
+  margin-left: 20px;
+}
+.alldot-check span{
+  width:20px;
+  height: 20px;
+  background:#eee;
+  float: left;
+  margin-right: 10px;
+  margin-top: 5px;
+
+}
+.active span{
+  background:#333!important;
+}
+.allline-check{
+  width:80px;
+  height:2px;
+  line-height: 30px;
+  float: left;
+  margin-left: 20px;
+}
+.allline-check span{
+  width:20px;
+  height: 2px;
+  background:#eee;
+  float: left;
+  margin-right: 10px;
+  margin-top: 14px;: 
+}
+.canvas-chart{
+  min-height: 500px;
+  background:#f4f4f4;
+}
+/* 表格 */
+.common-table {
+  margin:50px;
+  overflow: hidden;
+  border-radius: 5px;
+  box-shadow: 0px 0px 3px rgba(118, 118, 118, 0.7);
+  -webkit-box-shadow: 0px 0px 3px rgba(118, 118, 118, 0.7);
+}
+.common-table table {
+    width: 100%;
+    table-layout: fixed;
+    border:0;
+    border-collapse: collapse;
+}
+.common-table table td, .common-table table th {
+    text-align: center;
+    height: 40px;
+    line-height: 40px;
+    font-size: 14px;
+    padding: 0 5px;
+    font-weight: normal;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    vertical-align: center;
+    border: 1px solid #eee;
+}
+.common-table table thead tr th {
+    background: #f1f4f8;
+    color: #232323;
+}
+.common-table table tbody {
+    background: white;
+}
+.common-table table tbody tr:nth-child(even) {
+    background: #f7feff;
+}

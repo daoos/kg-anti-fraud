@@ -6,7 +6,7 @@
 
 <configuration>
     <settings>
-        <!-- 打印查询语句 -->
+        <!-- 打印查询语句 !上线后一定要干掉! -->
         <setting name="logImpl" value="STDOUT_LOGGING" />
     </settings>
 

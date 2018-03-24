@@ -80,5 +80,10 @@
       "contentType": "学校",
       "hasarrow": 0
     }
+  },
+  "depthReport":{
+    "0":1,
+    "1":3,
+    "deepest":1
   }
 }

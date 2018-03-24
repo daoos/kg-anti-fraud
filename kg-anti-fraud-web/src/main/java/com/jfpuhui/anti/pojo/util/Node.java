@@ -8,26 +8,33 @@ package com.jfpuhui.anti.pojo.util;
  */
 public class Node {
 
-    private Long id;
-    private String certi_no;
+    private String id;
+    private String certiNo;
     private String name;
-    private Integer node_type;
+    /**
+     * 客户类型: 0-白客户,1-灰色客户,2-黑名单
+     */
+    private Long nodeType;
 
+    /**
+     * 节点所在的度, 中心节点为0, 外围一圈为1, 在外围为2,..., 搜索条件时边时, 满足条件的所有的端点就是0度
+     */
+    private Integer depth;
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public String getCerti_no() {
-        return certi_no;
+    public String getCertiNo() {
+        return certiNo;
     }
 
-    public void setCerti_no(String certi_no) {
-        this.certi_no = certi_no;
+    public void setCertiNo(String certiNo) {
+        this.certiNo = certiNo;
     }
 
     public String getName() {
@@ -38,14 +45,21 @@ public class Node {
         this.name = name;
     }
 
-    public Integer getNode_type() {
-        return node_type;
+    public Long getNodeType() {
+        return nodeType;
     }
 
-    public void setNode_type(Integer node_type) {
-        this.node_type = node_type;
+    public void setNodeType(Long nodeType) {
+        this.nodeType = nodeType;
     }
 
+    public Integer getDepth() {
+        return depth;
+    }
+
+    public void setDepth(Integer depth) {
+        this.depth = depth;
+    }
 
     /**node.id相同则为同一个节点
      * @param o

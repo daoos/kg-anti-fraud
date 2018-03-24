@@ -1,0 +1,51 @@
+package com.jfpuhui.anti.common;
+
+import java.io.Serializable;
+
+/**自定义响应状态码  -- fail: 装json是不是 属性:值, 而是 实例的名称
+ * @author Nisus-Liu
+ * @version 1.0.0
+ * @email liuhejun108@163.com
+ * @date 2018-03-21-15:43
+ */
+public enum StatusCode {
+    TOO_MANY_CORE_NODES(2000,"核心节点数量超限"),
+    TOO_MANY_1D_NODES(2001,"一度节点数量超限"),
+    TOO_MANY_2D_NODES(2002,"二度节点数量超限"),
+    TOO_MANY_1D_EDGES(2011,"一度边数量超限"),
+    TOO_MANY_2D_EDGES(2012,"二度边数量超限"),
+    NO_MATCHED_CORE_NODES(1000,"未匹配到任何核心节点");
+
+
+    private Integer code;
+    private String msg;
+
+    StatusCode(Integer code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+
+    public Integer getCode() {
+        return code;
+    }
+
+    public void setCode(Integer code) {
+        this.code = code;
+    }
+
+    public String getMsg() {
+        return msg;
+    }
+
+    public void setMsg(String msg) {
+        this.msg = msg;
+    }
+
+    @Override
+    public String toString() {
+        return "StatusCode{" +
+                "code=" + code +
+                ", msg='" + msg + '\'' +
+                '}';
+    }
+}

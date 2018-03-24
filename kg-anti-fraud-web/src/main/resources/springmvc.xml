@@ -52,6 +52,9 @@
     ///三大组件-->
 
 
+    <!--静态资源不拦截-->
+    <mvc:resources mapping="/js/**" location="/js/"/>
+
     <!--
     拦截器栈-->
     <!--<mvc:interceptors>-->
