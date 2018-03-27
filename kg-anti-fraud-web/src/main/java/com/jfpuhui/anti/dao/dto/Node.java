@@ -1,4 +1,8 @@
-package com.jfpuhui.anti.pojo.util;
+package com.jfpuhui.anti.dao.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.io.Serializable;
 
 /**
  * @author Nisus-Liu
@@ -6,14 +10,16 @@ package com.jfpuhui.anti.pojo.util;
  * @email liuhejun108@163.com
  * @date 2018-03-16-18:20
  */
-public class Node {
+public class Node implements Serializable{
 
     private String id;
     private String certiNo;
+    //@JsonProperty("label")
     private String name;
     /**
      * 客户类型: 0-白客户,1-灰色客户,2-黑名单
      */
+    @JsonProperty("type")
     private Long nodeType;
 
     /**

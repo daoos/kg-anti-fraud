@@ -1,4 +1,8 @@
-package com.jfpuhui.anti.pojo.util;
+package com.jfpuhui.anti.dao.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.io.Serializable;
 
 /**
  * @author Nisus-Liu
@@ -6,7 +10,7 @@ package com.jfpuhui.anti.pojo.util;
  * @email liuhejun108@163.com
  * @date 2018-03-17-12:29
  */
-public class Edge {
+public class Edge implements Serializable{
 
     private Long id;
     /**
@@ -18,6 +22,7 @@ public class Edge {
      */
     private String target;
     private String content;
+    @JsonProperty("type")
     private String contentType;
     /**
      * 是否右箭头: true-有, false-无

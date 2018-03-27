@@ -1,13 +1,14 @@
 package com.jfpuhui.anti.service;
 
 import com.jfpuhui.anti.common.StatusCode;
+import com.jfpuhui.anti.dao.dto.Edge;
+import com.jfpuhui.anti.dao.dto.Graph;
+import com.jfpuhui.anti.dao.dto.Node;
+import com.jfpuhui.anti.dao.pojo.CustProperty;
+import com.jfpuhui.anti.dao.pojo.CustRelationship;
 import com.jfpuhui.anti.exception.CustomException;
 import com.jfpuhui.anti.mapper.CustPropertyMapper;
 import com.jfpuhui.anti.mapper.CustRelationshipMapper;
-import com.jfpuhui.anti.pojo.CustProperty;
-import com.jfpuhui.anti.pojo.CustRelationship;
-import com.jfpuhui.anti.pojo.util.Edge;
-import com.jfpuhui.anti.pojo.util.Node;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,18 +33,20 @@ public abstract class GraphServiceTemplate {
     //private final static int MAX_DISPLAY_EDGES_CORE = 126;  // 7个核两两相连, 平均每两点6条边
 
 
-    public Map<String, Object> getGraph4MultiCores(List<String> nodeIds, CustRelationshipMapper custRelationshipMapper, CustPropertyMapper custPropertyMapper) throws CustomException {
+    public Graph getGraph4MultiCores(List<String> nodeIds, CustRelationshipMapper custRelationshipMapper, CustPropertyMapper custPropertyMapper) throws CustomException {
         if (nodeIds.size() == 0) {
             throw new CustomException("[nodeIds] is empty, will don't excute any SQL");
         }
 
-        Map<String, Object> graph = new HashMap<>();
+//        Map<String, Object> graph = new HashMap<>();
+        Graph graph = new Graph();
         //2 判断身份证号list长度, >36给出提示, 条件太宽, 节点太多; <=36, 继续
         if (nodeIds.size() > MAX_DISPLAY_NODES_CORE) {   //core node 数目超限
             log.info("当前[核]数量大于{}, 将返回null",MAX_DISPLAY_NODES_CORE);
-            graph.put("status", StatusCode.TOO_MANY_CORE_NODES);
-            graph.put("nodes", null);
-            graph.put("edges", null);
+//            graph.put("status", StatusCode.TOO_MANY_CORE_NODES);
+//            graph.put("nodes", null);
+//            graph.put("edges", null);
+            graph = new Graph(null, null, StatusCode.TOO_MANY_CORE_NODES);
             return graph;
         }
 
@@ -72,9 +75,10 @@ public abstract class GraphServiceTemplate {
         //4 边数不超限, 则继续查二度边数据集
         if (oneDepthRels.size() > MAX_DISPLAY_EDGES) {
             log.info("当期一度范围内[边]大于{}, 将返回null",MAX_DISPLAY_EDGES);
-            graph.put("status", StatusCode.TOO_MANY_1D_EDGES);
-            graph.put("nodes", null);
-            graph.put("edges", null);
+//            graph.put("status", StatusCode.TOO_MANY_1D_EDGES);
+//            graph.put("nodes", null);
+//            graph.put("edges", null);
+            graph = new Graph(null, null, StatusCode.TOO_MANY_1D_EDGES);
             return graph;
         }
 
@@ -115,9 +119,8 @@ public abstract class GraphServiceTemplate {
 
             //封装点属性
             dumpCustPropertyData(oneDepthNodes, custProperties, 1);
-
-            graph.put("nodes", oneDepthNodes);
-            graph.put("edges", oneDepthEdges);
+            graph.setNodes(oneDepthNodes);
+            graph.setEdges(oneDepthEdges);
             return graph;
         }
 
@@ -131,8 +134,8 @@ public abstract class GraphServiceTemplate {
         List<CustRelationship> allRel = custRelationshipMapper.selectRelByGivenCertNos(oneDepthNodesKeySet);
         if (allRel.size() > MAX_DISPLAY_EDGES) {
             log.info("当前二度范围内[边]总数大于[{}], 仅返回一度节点和边数据", MAX_DISPLAY_EDGES);
-            graph.put("nodes", oneDepthNodes);
-            graph.put("edges", oneDepthEdges);
+            graph.setNodes(oneDepthNodes);
+            graph.setEdges(oneDepthEdges);
             return graph;
         }
 
@@ -163,13 +166,13 @@ public abstract class GraphServiceTemplate {
             //0,1,2度节点之和超过阈值, 则只返回一度节点和边
             log.info("当前二度范围内[节点]总数大于[{}], 仅返回一度节点和边数据", MAX_DISPLAY_NODES_2D);
 
-            graph.put("nodes", oneDepthNodes);
-            graph.put("edges", oneDepthEdges);
+            graph.setNodes(oneDepthNodes);
+            graph.setEdges(oneDepthEdges);
         } else {
             //没有超限, 则返回1,2度全部
             log.info("返回全部二度范围内节点和边数据");
-            graph.put("nodes", nodes);
-            graph.put("edges", edges);
+            graph.setNodes(nodes);
+            graph.setEdges(edges);
         }
 
 
@@ -181,19 +184,18 @@ public abstract class GraphServiceTemplate {
 //    protected abstract List<CustRelationship> getAll1DRelByGivenNodeIds();
 
 
-    public Map<String, Object> getGraph4SingleCores(String nodeId, CustRelationshipMapper custRelationshipMapper, CustPropertyMapper custPropertyMapper) throws CustomException {
+    public Graph getGraph4SingleCores(String nodeId, CustRelationshipMapper custRelationshipMapper, CustPropertyMapper custPropertyMapper) throws CustomException {
         if (StringUtils.isBlank(nodeId)) {
             throw new CustomException("[nodeId] is blank null or ' '");
         }
 
         List<CustRelationship> oneDepthRels = custRelationshipMapper.selectAll1DRelByCertNo(nodeId);
 
-        Map<String, Object> graph = new HashMap<>();
+        //Map<String, Object> graph = new HashMap<>();
+        Graph graph = new Graph();
         if (oneDepthRels.size() == 0) {
             log.info("当前1度范围内[边]等于0, 将返回null");
-            graph.put("status", StatusCode.NO_MATCHES);
-            graph.put("nodes", null);
-            graph.put("edges", null);
+            graph = new Graph(null, null, StatusCode.NO_MATCHES);
             return graph;
         }
 
@@ -211,17 +213,7 @@ public abstract class GraphServiceTemplate {
         oneDepthNodes.put(core.getId(), core);
 
         //遍历一度边, 封装数据
-        for (CustRelationship rel : oneDepthRels) {
-            //Note: 以身份证为node id
-            Edge edge = new Edge(rel.getId(), rel.getuCertNo(), rel.getvCertNo(), rel.getContent(), rel.getContentType(), rel.getRelationType());
-            //因为根据唯一身份证号(node id)匹配的边数据集, 所以这里面所有的边都是1度的
-            edge.setDepth(1);
-            oneDepthEdges.put(String.valueOf(edge.getId()), edge);
-
-            //region 收集node
-            gatherNodes(oneDepthNodes, rel, 1);
-            //endregion
-        }
+        gatherNodeEdge(oneDepthRels, oneDepthEdges, oneDepthNodes,1);
 
         Set<String> oneDepthNodesKeySet = oneDepthNodes.keySet();
 
@@ -235,9 +227,8 @@ public abstract class GraphServiceTemplate {
             //封装点属性
             dumpCustPropertyData(oneDepthNodes, custProperties, 1);
 
-            graph.put("nodes", oneDepthNodes);
-            graph.put("edges", oneDepthEdges);
-
+            graph.setNodes(oneDepthNodes);
+            graph.setEdges(oneDepthEdges);
             return graph;
         }
 
@@ -252,14 +243,15 @@ public abstract class GraphServiceTemplate {
         List<CustRelationship> allRel = custRelationshipMapper.selectRelByGivenCertNos(oneDepthNodesKeySet);
         if (allRel.size() > MAX_DISPLAY_EDGES) {
             log.info("当前二度范围内[边]总数大于[{}], 仅返回一度节点和边数据", MAX_DISPLAY_EDGES);
-            graph.put("nodes", oneDepthNodes);
-            graph.put("edges", oneDepthEdges);
-
+            graph.setNodes(oneDepthNodes);
+            graph.setEdges(oneDepthEdges);
             return graph;
         }
 
         // -- 二度范围边在范围之内, 则加工边数据集 --
 
+        gatherNodeEdge(allRel, edges, nodes,2);
+        /* ABANDON: 抽取
         for (CustRelationship rel : allRel) {
             //Note: oneDepthEdges中已有的, 不用再封装了, 没有的, 创建, 封装, 存入edges中, 且depth==2
             if (oneDepthEdges.get(rel.getId()) == null) {
@@ -273,6 +265,7 @@ public abstract class GraphServiceTemplate {
             //遇到新节点, 则存入nodes中, 且深度为2 !注意别存错了!
             gatherNodes(nodes, rel, 2);
         }
+        */
 
         //查询所有属性: 核, 一度, 二度
         Set<String> allCertNos = nodes.keySet();    //获取所有身份证号, 查取属性数据
@@ -286,36 +279,57 @@ public abstract class GraphServiceTemplate {
             //0,1,2度节点之和超过阈值, 则只返回一度节点和边
             log.info("当前二度范围内[节点]总数大于[{}], 仅返回一度节点和边数据", MAX_DISPLAY_NODES_2D);
 
-            graph.put("nodes", oneDepthNodes);
-            graph.put("edges", oneDepthEdges);
+            graph.setNodes(oneDepthNodes);
+            graph.setEdges(oneDepthEdges);
         } else {
             //没有超限, 则返回1,2度全部
             log.info("返回全部二度范围内节点和边数据");
-            graph.put("nodes", nodes);
-            graph.put("edges", edges);
+            graph.setNodes(nodes);
+            graph.setEdges(edges);
         }
 
 
         return graph;
     }
 
+    /**遍历关系数据集, 手机边和点, 放入传入的map中
+     * @param rels
+     * @param edges
+     * @param nodes
+     * @param depth
+     */
+    protected void gatherNodeEdge(List<CustRelationship> rels, Map<String, Edge> edges, Map<String, Node> nodes, Integer depth) {
+        for (CustRelationship rel : rels) {
+            //为了通用性,加上条件. 本条件适用于: 确定下文创建的边的depth
+            if (edges.get(rel.getId()) == null) {
+                //Note: 以身份证为node id
+                Edge edge = new Edge(rel.getId(), rel.getuCertNo(), rel.getvCertNo(), rel.getContent(), rel.getContentType(), rel.getRelationType());
+                //因为根据唯一身份证号(node id)匹配的边数据集, 所以这里面所有的边都是1度的
+                edge.setDepth(depth);
+                edges.put(String.valueOf(edge.getId()), edge);
+            }
 
-    public Map<String, Object> getGraph4MutliCores(String vid, CustRelationshipMapper custRelationshipMapper, CustPropertyMapper custPropertyMapper) throws CustomException {
+            //region 收集node
+            gatherNodes(nodes, rel, depth);
+            //endregion
+        }
+    }
+
+
+    public Graph getGraph4MutliCores(String vid, CustRelationshipMapper custRelationshipMapper, CustPropertyMapper custPropertyMapper) throws CustomException {
 
         if (StringUtils.isBlank(vid)) {
             throw new CustomException("[vid] is blank");
         }
 
-        Map<String, Object> graph = new HashMap<>();
-
+        //Map<String, Object> graph = new HashMap<>();
+        Graph graph = new Graph();
         //1. 查出所有满足给定vid的边数据集  0度点 0度边
         List<CustRelationship> coreRels = custRelationshipMapper.selectAll0DRelByVid(vid);
 
         if (coreRels.size() == 0) {
             log.info("当前0度范围内[边]等于0, 将返回null");
-            graph.put("status", StatusCode.NO_MATCHED_CORE_EDGES);
-            graph.put("nodes", null);
-            graph.put("edges", null);
+            graph = new Graph(null, null, StatusCode.NO_MATCHED_CORE_EDGES);
             return graph;
         }
 
@@ -353,9 +367,7 @@ public abstract class GraphServiceTemplate {
         * 这时可判断0度点和0度边是否均满足阈值*/
         if (zeroDepthNodes.size() > MAX_DISPLAY_NODES_CORE) { //|| zeroDepthEdges.size()>MAX_DISPLAY_EDGES_CORE
             log.info("当前[核]数量大于{}, 将返回null",MAX_DISPLAY_NODES_CORE);
-            graph.put("status", StatusCode.TOO_MANY_CORE_NODES);
-            graph.put("nodes", null);
-            graph.put("edges", null);
+            new Graph(null, null, StatusCode.TOO_MANY_CORE_NODES);
             return graph;
         }
 
@@ -371,9 +383,7 @@ public abstract class GraphServiceTemplate {
             //封装点属性
             dumpCustPropertyData(zeroDepthNodes, custProperties, 0);
 
-            graph.put("nodes", zeroDepthNodes);
-            graph.put("edges", zeroDepthEdges);
-            graph.put("status", StatusCode.TOO_MANY_EDGES);
+            graph = new Graph(zeroDepthNodes, zeroDepthEdges, StatusCode.TOO_MANY_EDGES);
 
             return graph;
         }
@@ -409,9 +419,7 @@ public abstract class GraphServiceTemplate {
         if (oneDepthNodeIds.size()> MAX_DISPLAY_NODES_1D) {
             log.info("当前一度范围内[节点]总数大于[{}], 仅返回0度节点和边数据", MAX_DISPLAY_NODES_1D);
 
-            graph.put("nodes", zeroDepthNodes);
-            graph.put("edges", zeroDepthEdges);
-            graph.put("status", StatusCode.TOO_MANY_1D_NODES);
+            graph = new Graph(zeroDepthNodes, zeroDepthEdges, StatusCode.TOO_MANY_1D_EDGES);
 
             return graph;
 
@@ -421,8 +429,8 @@ public abstract class GraphServiceTemplate {
         List<CustRelationship> allRel = custRelationshipMapper.selectRelByGivenCertNos(oneDepthNodeIds);
         if (allRel.size() > MAX_DISPLAY_EDGES) {
             log.info("当前二度范围内[边]总数大于[{}], 仅返回一度节点和边数据", MAX_DISPLAY_EDGES);
-            graph.put("nodes", oneDepthNodes);
-            graph.put("edges", oneDepthEdges);
+            graph.setNodes(oneDepthNodes);
+            graph.setEdges(oneDepthEdges);
 
             return graph;
         }
@@ -462,13 +470,13 @@ public abstract class GraphServiceTemplate {
             //0,1,2度节点之和超过阈值, 则只返回一度节点和边
             log.info("当前二度范围内[节点]总数大于[{}], 仅返回一度节点和边数据", MAX_DISPLAY_NODES_2D);
 
-            graph.put("nodes", oneDepthNodes);
-            graph.put("edges", oneDepthEdges);
+            graph.setNodes(oneDepthNodes);
+            graph.setEdges(oneDepthEdges);
         } else {
             //没有超限, 则返回1,2度全部
             log.info("返回全部二度范围内节点和边数据");
-            graph.put("nodes", nodes);
-            graph.put("edges", edges);
+            graph.setNodes(nodes);
+            graph.setEdges(edges);
         }
 
 
@@ -479,7 +487,7 @@ public abstract class GraphServiceTemplate {
 
 
 
-    private void gatherNodes(Map<String, Node> nodeMap, CustRelationship custRelationship, int depth) {
+    private void gatherNodes(Map<String, Node> nodeMap, CustRelationship custRelationship, Integer depth) {
         //source node
         if (nodeMap.get(custRelationship.getuCertNo()) == null) {
             Node node = new Node();
@@ -496,7 +504,7 @@ public abstract class GraphServiceTemplate {
         }
     }
 
-    private void dumpCustPropertyData(Map<String, Node> nodes, List<CustProperty> custProperties, int depth) {
+    protected void dumpCustPropertyData(Map<String, Node> nodes, List<CustProperty> custProperties, int depth) {
         for (CustProperty prop : custProperties) {
             Node node = nodes.get(prop.getCertNo());
             //region 正常情况下, node不会为null,因为上文已经根据CertNo创建过了, 除非属性表和关系表身份证不一致

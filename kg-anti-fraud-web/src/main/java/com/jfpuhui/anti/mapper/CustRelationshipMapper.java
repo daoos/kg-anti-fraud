@@ -1,7 +1,6 @@
 package com.jfpuhui.anti.mapper;
 
-import com.jfpuhui.anti.pojo.CustProperty;
-import com.jfpuhui.anti.pojo.CustRelationship;
+import com.jfpuhui.anti.dao.pojo.CustRelationship;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.jfpuhui.anti.pojo;
+package com.jfpuhui.anti.dao.pojo;
 
 
 import java.io.Serializable;

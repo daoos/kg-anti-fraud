@@ -1,16 +1,16 @@
 package com.jfpuhui.anti.service;
 
 import com.jfpuhui.anti.common.StatusCode;
+import com.jfpuhui.anti.dao.dto.Edge;
+import com.jfpuhui.anti.dao.dto.Graph;
+import com.jfpuhui.anti.dao.dto.Node;
 import com.jfpuhui.anti.exception.CustomException;
 import com.jfpuhui.anti.mapper.CustPropertyMapper;
 import com.jfpuhui.anti.mapper.CustRelationshipMapper;
-import com.jfpuhui.anti.pojo.CustProperty;
-import com.jfpuhui.anti.pojo.CustRelationship;
-import com.jfpuhui.anti.pojo.util.Edge;
-import com.jfpuhui.anti.pojo.util.Node;
+import com.jfpuhui.anti.dao.pojo.CustProperty;
+import com.jfpuhui.anti.dao.pojo.CustRelationship;
 import com.sun.istack.internal.NotNull;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -100,9 +100,9 @@ public class GraphServiceImpl implements GraphService {
      * @return
      */
     @Override
-    public Map<String, Object> selectByCertNo4Smart(@NotNull String certNo) throws CustomException {
+    public Graph selectByCertNo4Smart(@NotNull String certNo) throws CustomException {
 
-        Map<String, Object> graph4SingleCores = new GraphServiceTemplate() {
+        Graph graph4SingleCores = new GraphServiceTemplate() {
         }.getGraph4SingleCores(certNo, custRelationshipMapper, custPropertyMapper);
 
         return graph4SingleCores;
@@ -116,14 +116,14 @@ public class GraphServiceImpl implements GraphService {
      * @param name
      * @return
      */
-    public Map<String, Object> selectByName4Smart(@NotNull String name) throws CustomException {
+    public Graph selectByName4Smart(@NotNull String name) throws CustomException {
         //1 查询所有满足条件的身份证号list, 每个身份证号代表一个node
         List<String> certNos = custRelationshipMapper.selectCertNosLikeName(name);
 
         //有可能没有匹配到任何身份证号
-        Map<String, Object> graph4MultiCores = new HashMap<>();
+        Graph graph4MultiCores = new Graph();
         if (certNos == null || certNos.size() == 0) {
-            graph4MultiCores.put("status", StatusCode.NO_MATCHED_CORE_NODES);
+            graph4MultiCores.setStatus(StatusCode.NO_MATCHED_CORE_NODES);
         }
         //用模板获取
         graph4MultiCores = new GraphServiceTemplate() {
@@ -140,12 +140,12 @@ public class GraphServiceImpl implements GraphService {
      * @param custType
      * @return
      */
-    public Map<String, Object> selectByCustType4Smart(@NotNull Integer custType) throws CustomException {
+    public Graph selectByCustType4Smart(@NotNull Integer custType) throws CustomException {
         List<String> certNos = custRelationshipMapper.selectCertNosByCustType(custType);
         //有可能没有匹配到任何身份证号
-        Map<String, Object> graph4MultiCores = new HashMap<>();
+        Graph graph4MultiCores = new Graph();
         if (certNos == null || certNos.size() == 0) {
-            graph4MultiCores.put("status", StatusCode.NO_MATCHED_CORE_NODES);
+            graph4MultiCores.setStatus(StatusCode.NO_MATCHED_CORE_NODES);
         }
 
         graph4MultiCores = new GraphServiceTemplate() {
@@ -155,11 +155,31 @@ public class GraphServiceImpl implements GraphService {
     }
 
     @Override
-    public Map<String, Object> selectByVid4Smart(String vid) throws CustomException {
-        Map<String, Object> graph4MutliCores = new GraphServiceTemplate() {
+    public Graph selectByVid4Smart(String vid) throws CustomException {
+        Graph graph4MutliCores = new GraphServiceTemplate() {
         }.getGraph4MutliCores(vid, custRelationshipMapper, custPropertyMapper);
 
         return graph4MutliCores;
+    }
+
+    @Override
+    public Graph expandGraphByCertNoBy1D(String certNo, Integer nodeDepth) {
+        Graph graph = new Graph();
+        List<CustRelationship> oneDepthRels = custRelationshipMapper.selectAll1DRelByCertNo(certNo);
+        if (oneDepthRels.size()<0) {
+            graph.setStatus(StatusCode.NO_MATCHES);
+            return graph;
+        }
+
+        GraphServiceTemplate tmpl = new GraphServiceTemplate() {};
+        tmpl.gatherNodeEdge(oneDepthRels,graph.getEdges(),graph.getNodes(),nodeDepth+1);
+
+        //获取节点属性数据
+        List<CustProperty> custProperties = custPropertyMapper.selectByCertNos(graph.getNodes().keySet());
+        tmpl.dumpCustPropertyData(graph.getNodes(),custProperties,nodeDepth+1);
+
+
+        return graph;
     }
 
 

@@ -168,56 +168,157 @@ function mapColorFromNodeType(nodeType) {
  var doDisplay = false;
  * 隐藏时, 优先级高于类别, 递归隐藏所有级别deeper*/
 KgAnti.prototype.toggleDisplayDeeper = function (node) {
-    if (!node.data.depth) {
+    if (node.data.depth == null) {
         return;
     }
 
     var doShow = true;
 
 
-    function filterNodes4Remove(adjacency, node, nodeSet, nodes4Remove) {
-        if (adjacency[node.id]) {
-            for (var relatedId in adjacency[nodeId]) {
+    /**递归搜索收集以备删除.
+     * 满足: 1.属于当前显示类别的节点. 2.度更深*/
+    function filterNodes4Remove(adjacency, reverseAdjacency, node, nodeSet, nodes4Remove) {
+        //正向边
+        if (adjacency[node.id] != null) {
+            for (var relatedId in adjacency[node.id]) {
                 var relatedNode = nodeSet[relatedId];
+                if (relatedNode.data != null && relatedNode.data.depth == null) {
+                    console.warn("No property of [depth], can't by remove by depth: node ID==" + relatedNode.id);
+                    return;
+                }
                 if (relatedNode.data.depth > node.data.depth) {
                     //收集这个node, 以供删除
-                    nodes4Remove[node.id] = node;
+                    nodes4Remove[relatedNode.id] = relatedNode;
                     //递归搜索满足条件的下一级node
-                    filterNodes4Remove(adjacency, node, nodeSet, nodes4Remove);
+                    filterNodes4Remove(adjacency, reverseAdjacency, relatedNode, nodeSet, nodes4Remove);
                 }
             }
         }
-
-        return nodes4Remove;
+        //反向边
+        if (reverseAdjacency[node.id] != null) {
+            for (var relatedId in reverseAdjacency[node.id]) {
+                var relatedNode = nodeSet[relatedId];
+                if (relatedNode.data != null && relatedNode.data.depth == null) {
+                    console.warn("No property of [depth], can't by remove by depth: node ID==" + relatedNode.id);
+                    return;
+                }
+                if (relatedNode.data.depth > node.data.depth) {
+                    //收集这个node, 以供删除
+                    nodes4Remove[relatedNode.id] = relatedNode;
+                    //递归搜索满足条件的下一级node
+                    filterNodes4Remove(adjacency, reverseAdjacency, relatedNode, nodeSet, nodes4Remove);
+                }
+            }
+        }
     }
-
 
     var nodes4Remove = {};
     /*graph.adjacency和graph.reverseAdjacency中一旦找到了关联的低级node,
     则: 1.本次任务是要隐藏; 2.干掉遇到的所有node*/
-    filterNodes4Remove(this.context.graph.adjacency, node, this.context.graph.nodeSet, nodes4Remove);
-    filterNodes4Remove(this.context.graph.reverseAdjacency, node, this.context.graph.nodeSet, nodes4Remove);
+    filterNodes4Remove(this.context.graph.adjacency, this.context.graph.reverseAdjacency, node, this.context.graph.nodeSet, nodes4Remove);
 
     if (Object.keys(nodes4Remove).length > 0) {
         doShow = false;
         //批量删除
-        for (var node in nodes4Remove) {
-            this.context.graph.removeNode(node);
+        for (var nodeId in nodes4Remove) {
+            this.context.graph.removeNode(nodes4Remove[nodeId]);
         }
     }
 
 
+    /**从缓存中搜寻关联节点和边, 并添加
+     * @return hasCacheAndAddSuccess true, 表示缓存中有低级数据并*/
+    function addNEFromCache(baseNode, graph, adjacency) {
+        var hasCacheAndAddSuccess = false;
+        for (var relatedNodeId in adjacency[baseNode.id]) {
+            //关联node满足:1.深一度;2.属于当前显示类别中
+            var relatedNode = graph.graphCache.nodeSet[relatedNodeId];
+
+            var needDisplay = true;
+            //
+            try { //约定: 没有depth属性的点, 不受双击展开/收缩约束
+                if (relatedNode.data.depth <= baseNode.data.depth) {
+                    needDisplay = false;
+                } else {
+                    //所有关联节点中, 只要有一个满足低级条件, 即表示当前缓存中有数据
+                    hasCacheAndAddSuccess = true;
+                }
+            } catch (e) {
+                hasCacheAndAddSuccess = false;  //关联节点没有depth属性时, 需要额外获取数据
+                console.info("No property of [depth], can't by add by depth: node ID==" + relatedNode.id);
+            }
+
+            try {   //约定: 没有data.type属性的点不受类型控制, 永远显示
+                if (!(relatedNode.data.type in graph.nodeTypeSet)) {
+                    needDisplay = false;
+                }
+            } catch (e) {
+            }
+
+            if (needDisplay) {
+                graph.addNode(relatedNode);
+                var edges = adjacency[baseNode.id][relatedNodeId];
+                graph.addEdgesIncludedInShowedEdgeType(edges);
+            }
+        }
+        return hasCacheAndAddSuccess;
+    }
+
+    function requestDeeperGDAndExpandGraph(requestUrl, baseNode, graph) {
+        var self = this;
+        $.ajax({
+            type: 'POST',
+            url: requestUrl,
+            data: {nodeId: baseNode.id, nodeDepth: node.data.depth},
+            success: function (data) {
+                console.log('双击节点获取的数据');
+                console.log(data);
+                console.log("[self] 指向KgAnti实例吗:");
+                console.log(self);
+                //扩展图形网络
+                var nodes = {};
+                var edges = {};
+                if (data != null && data.nodes != null) {
+                    for (var nodeId in data.nodes) {
+                        var node = new Springy.Node(nodeId, data.nodes[nodeId]);    //后台支撑数据结构: nodeId:node
+                        self.initNode(node);
+                        nodes[node.id] = node;
+                    }
+                    console.log(nodes);
+                }
+                if (data != null && data.edges != null) {
+                    for (var edgeId in data.edges) {
+                        var edgeData = data.edges[edgeId];
+                        var source = nodes[edgeData.source];
+                        var target = nodes[edgeData.target];
+                        var edge = new Springy.Edge(edgeId, source, target, edgeData);
+                        self.initEdge(edge);
+                        edges[edge.id] = edge;
+                    }
+                    console.log(edges);
+                }
+                graph.expandGraph({nodes: nodes, edges: edges});
+
+            }.bind(self),
+            dataType: 'json'
+        });
+    }
+
     //本次执行显示任务
     if (doShow) {
-        //去缓存里找下一级关联节点
-
-
+        //去缓存里找下一级关联点边,并添加
+        var hasCacheAndAddSuccess = addNEFromCache(node, this.context.graph, this.context.graph.graphCache.adjacency);
+        var hasCacheAndAddSuccess_rev = addNEFromCache(node, this.context.graph, this.context.graph.graphCache.reverseAdjacency);
         //若没有缓存 -> 请求数据
+        if (!(hasCacheAndAddSuccess || hasCacheAndAddSuccess_rev)) {
+            requestDeeperGDAndExpandGraph.call(this, this.context.dbClickUrl, node, this.context.graph);
+        }
+
     }
 
 
+    /* ABANDON: 业务逻辑改变
     var oneLevelNeighborEdges = {}; //存储一度边
-    //TODO 根据当前节点id, 获取关联的所有一度关系数据
     $.getJSON(url, {nodeId: nodeId}, function (dbclickGetData) {
         //start: 根据当前节点的id从后台获取其周边一度关联节点数据  --!根据当前节点id筛选之后的!
         var dbclickGetData = JSON.stringify(dbclickGetData);
@@ -270,6 +371,7 @@ KgAnti.prototype.toggleDisplayDeeper = function (node) {
         }
 
     })
+    */
 
 };
 
@@ -292,30 +394,11 @@ KgAnti.prototype.initGraph = function () {
     var nodes = data.nodes;
     if (nodes != null) {
         for (var nodeKey in nodes) {
-
-            //建立节点
-            var nodeData = nodes[nodeKey];
-            nodeData.label = nodes[nodeKey].name;     //可灵活指定用什么字段作为label
-            //配置节点字体样式
-            nodeData.font = "30px Verdana, sans-serif";
-            //填充颜色
-            nodeData.fillColor = 'rgba(90,25,222,0.25)';
-            //文本颜色
-            nodeData.color = "#993366";
-            //显示图片
-            //nodeData.image = ;
-            nodeData.radius = 35;
-            //节点类型
-            nodeData.type = nodeData.nodeType;
-
-            var node = new Springy.Node(nodeKey, nodeData);
-
-            // 添加双击事件, 展示/收起周边节点
-            node.data.ondoubleclick = function () {
-                //判断当前节点是否显示了全部周边节点-->然后据此展开还是收缩
-                this.toggleDisplayDeeper(node);
-            };
-
+            //获取节点
+            var node = new Springy.Node(nodeKey, nodes[nodeKey]);    //后台支撑数据结构: nodeId:node
+            this.initNode(node);
+            console.log("initNode()后:");
+            console.log(node);
             graph.addNode(node);
 
             //将节点类型记录下来, 用于页面显示  nodeType:[nodeId,...]
@@ -335,20 +418,15 @@ KgAnti.prototype.initGraph = function () {
     var edges = data.edges;
     if (edges != null) {
         for (var edgeKey in edges) {
-            //建立边
-            var edgeData = edges[edgeKey];
-            edgeData.color = mapColorFromEdgeType(edgeData.contentType);
-            edgeData.label = edgeData.contentType + "\n" + edgeData.content;      //可根据需求灵活配置边上显示的内容
-            edgeData.font = "20px Verdana, sans-serif";
-            edgeData.type = edgeData.contentType;
-
             //根据节点id在上述已经创建的node中找出node
-            var source = graph.nodeSet[edgeData.source];
-            var target = graph.nodeSet[edgeData.target];
+            var source = graph.nodeSet[edges[edgeKey].source];
+            var target = graph.nodeSet[edges[edgeKey].target];
+            //建立边
+            var edge = new Springy.Edge(edgeKey, source, target, edges[edgeKey]);
 
+            this.initEdge(edge);
 
             //vid 由 content和contentType取md5唯一确定出的边
-            var edge = new Springy.Edge(edgeKey, source, target, edgeData);
             graph.addEdge(edge);
 
             //将边类型记录下来 <edgeType:[edgeId,....]>
@@ -370,6 +448,34 @@ KgAnti.prototype.initGraph = function () {
     console.log(this.context.graph.graphCache.edgeTypeSet);
 
 }
+
+
+/**配置点*/
+KgAnti.prototype.initNode = function (node) {
+    node.data.label = node.data.name;     //可灵活指定用什么字段作为label
+    //配置节点字体样式
+    node.data.font = "30px Verdana, sans-serif";
+    //填充颜色
+    node.data.fillColor = 'rgba(90,25,222,0.25)';
+    //文本颜色
+    node.data.color = "#993366";
+    //显示图片
+    // node.data.image = ;
+    node.data.radius = 35;
+
+
+    // 添加双击事件, 展示/收起周边节点
+    node.data.ondoubleclick = function () {
+        //判断当前节点是否显示了全部周边节点-->然后据此展开还是收缩
+        //alert('double click');
+        this.toggleDisplayDeeper(node);
+    }.bind(this);
+};
+KgAnti.prototype.initEdge = function (edge) {
+    edge.data.color = mapColorFromEdgeType(edge.data.contentType);
+    edge.data.label = edge.data.type + "\n" + edge.data.content;      //可根据需求灵活配置边上显示的内容
+    edge.data.font = "20px Verdana, sans-serif";
+};
 
 
 /**根据复选框状态切换被选中类别的显示或隐藏*/

@@ -41,388 +41,581 @@
     }
 }(this, function () {
 
-    var Springy = {};
+        var Springy = {};
 
-    var Graph = Springy.Graph = function () {
-        this.nodeSet = {};	//nodeId:node
-        this.nodes = [];
-        this.edges = [];	//存入 edge 们
-        this.adjacency = {};	//{source.id:{target.id:[edge,...],...}
-        this.reverseAdjacency = {};  //targetId->sourceId->[edge,....]
+        var Graph = Springy.Graph = function () {
+            this.nodeSet = {};	//nodeId:node
+            this.nodes = [];
+            this.edges = [];	//存入 edge 们
+            this.adjacency = {};	//{source.id:{target.id:[edge,...],...}
+            this.reverseAdjacency = {};  //targetId->sourceId->[edge,....]
 
-        this.nextNodeId = 0;
-        this.nextEdgeId = 0;
-        this.eventListeners = [];
+            this.nextNodeId = 0;
+            this.nextEdgeId = 0;
+            this.eventListeners = [];
 
-        /*点,边类型集合*/
-        this.nodeTypeSet = {}; //nodeType:{nodeId:node,....}
-        this.edgeTypeSet = {};
-        /*lj+ 缓存图形数据, addNode(),addEdge()均会将新增的图形元素数据放入, remove*()操作则不删除这里面的数据
-        * 只要 graph 不消失, 始终可以在这里找到曾经图形中显示过的点,边数据*/
-        this.graphCache = {nodeSet: {}, edgeSet: {}, adjacency: {}, reverseAdjacency: {}, nodeTypeSet: {}, edgeTypeSet: {}};	//nodes:{<nodeId:node>,...}
-    };
+            /*点,边类型集合*/
+            this.nodeTypeSet = {}; //nodeType:{nodeId:node,....}
+            this.edgeTypeSet = {};
+            /*lj+ 缓存图形数据, addNode(),addEdge()均会将新增的图形元素数据放入, remove*()操作则不删除这里面的数据
+            * 只要 graph 不消失, 始终可以在这里找到曾经图形中显示过的点,边数据*/
+            this.graphCache = {
+                nodeSet: {},
+                edgeSet: {},
+                adjacency: {},
+                reverseAdjacency: {},
+                nodeTypeSet: {},
+                edgeTypeSet: {}
+            };	//nodes:{<nodeId:node>,...}
+        };
 
-    var Node = Springy.Node = function (id, data) {
-        this.id = id;
-        this.data = (data !== undefined) ? data : {};
+        var Node = Springy.Node = function (id, data) {
+            this.id = id;
+            this.data = (data !== undefined) ? data : {};
 
-        // Data fields used by layout algorithm in this file:
-        // this.data.mass
-        // Data used by default renderer in springyui.js
-        // this.data.label
-    };
+            // Data fields used by layout algorithm in this file:
+            // this.data.mass
+            // Data used by default renderer in springyui.js
+            // this.data.label
+        };
 
-    var Edge = Springy.Edge = function (id, source, target, data) {
-        this.id = id;
-        this.source = source;
-        this.target = target;
-        this.data = (data !== undefined) ? data : {};
+        var Edge = Springy.Edge = function (id, source, target, data) {
+            this.id = id;
+            this.source = source;
+            this.target = target;
+            this.data = (data !== undefined) ? data : {};
 
-        // Edge data field used by layout alorithm
-        // this.data.length
-        // this.data.type
-    };
+            // Edge data field used by layout alorithm
+            // this.data.length
+            // this.data.type
+        };
 
-    Graph.prototype.addNode = function (node) {
-        if (!(node.id in this.nodeSet)) {	//判断当前 node 在 nodeSet中是否已有
-            this.nodes.push(node);
-        }
-
-        this.nodeSet[node.id] = node;
-
-        //lj+ 将node缓存到 graphCache
-        this.graphCache.nodeSet[node.id] = node;
-        //根据类型添加到nodeTypeSet中
-        if (node.data.type != null) {
-            if (!(node.data.type in this.nodeTypeSet)) {
-                this.nodeTypeSet[node.data.type] = {};
+        Graph.prototype.addNode = function (node) {
+            if (!(node.id in this.nodeSet)) {	//判断当前 node 在 nodeSet中是否已有
+                this.nodes.push(node);
             }
-            if(!(node.data.type in this.graphCache.nodeTypeSet)) {
-                this.graphCache.nodeTypeSet[node.data.type] = {};
+
+            this.nodeSet[node.id] = node;
+
+            //lj+ 将node缓存到 graphCache
+            this.graphCache.nodeSet[node.id] = node;
+            //根据类型添加到nodeTypeSet中
+            if (node.data != null && node.data.type != null) {
+                if (!(node.data.type in this.nodeTypeSet)) {
+                    this.nodeTypeSet[node.data.type] = {};
+                }
+                if (!(node.data.type in this.graphCache.nodeTypeSet)) {
+                    this.graphCache.nodeTypeSet[node.data.type] = {};
+                }
+
+                this.nodeTypeSet[node.data.type][node.id] = node;
+                this.graphCache.nodeTypeSet[node.data.type][node.id] = node;
             }
-            
-            this.nodeTypeSet[node.data.type][node.id] = node;
-            this.graphCache.nodeTypeSet[node.data.type][node.id] = node;
-        }
 
 
-        this.notify();
-        return node;
-    };
+            this.notify();
+            return node;
+        };
 
-    Graph.prototype.addNodes = function () {
-        // accepts variable number of arguments, where each argument
-        // is a string that becomes both node identifier and label
-        for (var i = 0; i < arguments.length; i++) {
-            var name = arguments[i];
-            var node = new Node(name, {label: name});
+        Graph.prototype.addNodes = function () {
+            // accepts variable number of arguments, where each argument
+            // is a string that becomes both node identifier and label
+            for (var i = 0; i < arguments.length; i++) {
+                var name = arguments[i];
+                var node = new Node(name, {label: name});
+                this.addNode(node);
+            }
+        };
+
+        Graph.prototype.addEdge = function (edge) {
+            var exists = false;
+            //判断是否已存在传入的边
+            this.edges.forEach(function (e) {
+                if (edge.id === e.id) {
+                    exists = true;
+                }
+            });
+
+            if (!exists) {
+                this.edges.push(edge);
+                //lj+ 将edge缓存到 graphCache
+                this.graphCache.edgeSet[edge.id] = edge;
+                //根据类型归并到edgeTypeSet中
+                if (edge.data != null && edge.data.type != null) {
+                    if (!(edge.data.type in this.edgeTypeSet)) {
+                        this.edgeTypeSet[edge.data.type] = {};
+                    }
+                    if (!(edge.data.type in this.graphCache.edgeTypeSet)) {
+                        this.graphCache.edgeTypeSet[edge.data.type] = {};
+                    }
+
+                    this.edgeTypeSet[edge.data.type][edge.id] = edge;
+                    this.graphCache.edgeTypeSet[edge.data.type][edge.id] = edge;
+                }
+
+            }
+
+            /*
+            * LJ: 正向和反向同步, 现存和缓存同步*/
+            //正向
+            if (!(edge.source.id in this.adjacency)) {
+                this.adjacency[edge.source.id] = {};
+            }
+            if (!(edge.source.id in this.graphCache.adjacency)) {
+                this.graphCache.adjacency[edge.source.id] = {};
+            }
+
+            if (!(edge.target.id in this.adjacency[edge.source.id])) {
+                this.adjacency[edge.source.id][edge.target.id] = [];
+            }
+            if (!(edge.target.id in this.graphCache.adjacency[edge.source.id])) {
+                this.graphCache.adjacency[edge.source.id][edge.target.id] = [];
+            }
+
+            //反向
+            if (!(edge.target.id in this.reverseAdjacency)) {
+                this.reverseAdjacency[edge.target.id] = {};
+            }
+            if (!(edge.target.id in this.graphCache.reverseAdjacency)) {
+                this.graphCache.reverseAdjacency[edge.target.id] = {};
+
+            }
+
+            if (!(edge.source.id in this.reverseAdjacency[edge.target.id])) {
+                this.reverseAdjacency[edge.target.id][edge.source.id] = [];
+            }
+            if (!(edge.source.id in this.graphCache.reverseAdjacency[edge.target.id])) {
+                this.graphCache.reverseAdjacency[edge.target.id][edge.source.id] = [];
+            }
+
+
+            exists = false;	//即使传入的 edge 在 edges 中已有, 也要判断内部的source和target有没有这个边id, 没有, 补上, 可能图形中就显示出来这个边
+            this.adjacency[edge.source.id][edge.target.id].forEach(function (e) {
+                if (edge.id === e.id) {
+                    exists = true;
+                }
+            });
+
+            //保证adjacency和edges信息一致
+            if (!exists) {
+                this.adjacency[edge.source.id][edge.target.id].push(edge);
+            }
+
+            exists = false;
+            this.reverseAdjacency[edge.target.id][edge.source.id].forEach(function (e) {
+                if (edge.id === e.id) {
+                    exists = true;
+                }
+            });
+            if (!exists) {
+                this.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
+                //this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
+            }
+
+            //Note: 若是恢复的边则会导致重复添加至缓存, 所以依然要判断缓存的中是已有这条边
+            exists = false;
+            this.graphCache.adjacency[edge.source.id][edge.target.id].forEach(function (e) {
+                if (edge.id === e.id) {
+                    exists = true;
+                }
+            });
+            if (!exists) {
+                this.graphCache.adjacency[edge.source.id][edge.target.id].push(edge);
+            }
+            exists = false;
+            this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].forEach(function (e) {
+                if (edge.id === e.id) {
+                    exists = true;
+                }
+            });
+            if (!exists) {
+                this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
+            }
+
+
+            this.notify();
+            return edge;
+        };
+
+        Graph.prototype.addEdges = function () {
+            // accepts variable number of arguments, where each argument
+            // is a triple [nodeid1, nodeid2, attributes]
+            for (var i = 0; i < arguments.length; i++) {
+                var e = arguments[i];
+                var node1 = this.nodeSet[e[0]];
+                if (node1 == undefined) {
+                    throw new TypeError("invalid node name: " + e[0]);
+                }
+                var node2 = this.nodeSet[e[1]];
+                if (node2 == undefined) {
+                    throw new TypeError("invalid node name: " + e[1]);
+                }
+                var attr = e[2];
+
+                this.newEdge(node1, node2, attr);
+            }
+        };
+
+
+        /**用于再次发送请求获取后台数据的场景.
+         * 对于传输的数据, 先进行过滤, 判断是否为新数据, 不是则不添加.
+         * 是新数据, 则根据是否要显示判断的结果, 决定添加到当前图中, 还是仅仅添加至缓存中.
+         * Note: 新加入的数据不会替换掉已有的.
+         * @param graphData  传入对象{nodes:{nodeId:node,...},edges:{edgeId:edge,...}}*/
+        Graph.prototype.expandGraph = function (graphData) {
+            if (graphData==null) {
+                return;
+            }
+
+
+            function onlyAddNodeToCache(node) {
+                this.graphCache.nodeSet[node.id] = node;
+
+                //根据类型添加到nodeTypeSet中
+                if (node.data != null && node.data.type != null) {
+                    if (!(node.data.type in this.graphCache.nodeTypeSet)) {
+                        this.graphCache.nodeTypeSet[node.data.type] = {};
+                    }
+
+                    this.graphCache.nodeTypeSet[node.data.type][node.id] = node;
+                }
+            }
+
+            function onlyAddEdgeToCache(edge) {
+                //lj+ 将edge缓存到 graphCache
+                this.graphCache.edgeSet[edge.id] = edge;
+                //根据类型归并到edgeTypeSet中
+                if (edge.data != null && edge.data.type != null) {
+                    if (!(edge.data.type in this.graphCache.edgeTypeSet)) {
+                        this.graphCache.edgeTypeSet[edge.data.type] = {};
+                    }
+
+                    this.graphCache.edgeTypeSet[edge.data.type][edge.id] = edge;
+                }
+
+
+                /*
+                * 正向和反向同步*/
+                //正向
+                if (!(edge.source.id in this.graphCache.adjacency)) {
+                    this.graphCache.adjacency[edge.source.id] = {};
+                }
+                if (!(edge.target.id in this.graphCache.adjacency[edge.source.id])) {
+                    this.graphCache.adjacency[edge.source.id][edge.target.id] = [];
+                }
+
+                //反向
+                if (!(edge.target.id in this.graphCache.reverseAdjacency)) {
+                    this.graphCache.reverseAdjacency[edge.target.id] = {};
+
+                }
+                if (!(edge.source.id in this.graphCache.reverseAdjacency[edge.target.id])) {
+                    this.graphCache.reverseAdjacency[edge.target.id][edge.source.id] = [];
+                }
+
+                //Note: 若是恢复的边则会导致重复添加至缓存, 所以依然要判断缓存的中是已有这条边
+                var exists = false;
+                this.graphCache.adjacency[edge.source.id][edge.target.id].forEach(function (e) {
+                    if (edge.id === e.id) {
+                        exists = true;
+                    }
+                });
+                if (!exists) {
+                    this.graphCache.adjacency[edge.source.id][edge.target.id].push(edge);
+                }
+                exists = false;
+                this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].forEach(function (e) {
+                    if (edge.id === e.id) {
+                        exists = true;
+                    }
+                });
+                if (!exists) {
+                    this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
+                }
+                return edge;
+            }
+
+            function isNewNEData(ne, graphType) {
+                var flag = true;
+                switch (graphType) {
+                    case 'node':
+                        if (this.graphCache.nodeSet[ne.id]) {
+                            flag = false;
+                        }
+                        break;
+                    case 'edge':
+                        if (this.graphCache.edgeSet[ne.id]) {
+                            flag = false;
+                        }
+                }
+                return flag;
+            }
+
+            function isNewNEType(ne, graphType) {
+                /*图形元素没有类别属性, 则当做新类别处理*/
+                var flag = true;
+                if (ne.data && ne.data.type) {
+                    switch (graphType) {
+                        case 'node':
+                            if (this.graphCache.nodeTypeSet[ne.data.type]) {
+                                flag = false;
+                            }
+                            break;
+                        case 'edge':
+                            if (this.graphCache.edgeTypeSet[ne.data.type]) {
+                                flag = false;
+                            }
+                    }
+                }
+
+                return flag;
+            }
+
+
+            //全新的类别也要显示
+            function needToDisplayNode(node) {
+                var flag = true;
+                if (node.data != null && node.data.type != null) {
+                    //缓存里存在且当前图中不存在==>旧的类别, 且不要显示
+                    //新的类别, 或当前图中要显示, 在显示
+                    if ((this.graphCache.nodeTypeSet[node.data.type]) && !(this.nodeTypeSet[node.data.type])) {
+                        flag = false;
+                    }
+                }
+                return flag;
+            }
+
+            function needToDisplayEdge(edge) {
+                var flag = true;
+                if (edge.data != null && edge.data.type != null) {
+                    //缓存里存在且当前图中不存在==>旧的类别, 且不要显示
+                    //新的类别, 或当前图中要显示, 在显示
+                    if ((this.graphCache.edgeTypeSet[edge.data.type]) && !(this.edgeTypeSet[edge.data.type])) {
+                        flag = false;
+                    }
+                }
+
+                var flag1 = false;
+                if (edge.source.id in this.nodeSet && edge.target.id in this.nodeSet) {
+                    flag1 = true;
+                }
+
+                return flag && flag1;
+            }
+
+
+            if (graphData.nodes) {
+                for (var nodeId in graphData.nodes) {
+                    var node = graphData.nodes[nodeId];
+                    //是否时全新数据(i.e.缓存里没有), 不是的则什么不做
+                    if (isNewNEData.call(this, node, 'node')) {
+                        //判断要不要显示, 要则正常添加, 否则仅仅添加到缓存
+                        if (needToDisplayNode.call(this, node)) {
+                            this.addNode(node);
+                        } else {
+                            onlyAddNodeToCache.call(this, node);
+                        }
+                    }
+                }
+            }
+
+
+            /*Note: 添加边, 必须: 1. 判断当前边是否是新边; 2. 当前边要不要显示.
+            * 对于边, 即使全新的类别, 也要判断其端点是否在显示状态, 才能决定是否要显示*/
+            if (graphData.edges) {
+                for (var edgeId in graphData.edges) {
+                    var edge = graphData.edges[edgeId];
+                    //是否时全新数据(i.e.缓存里没有), 不是的则什么不做
+                    if (isNewNEData.call(this, edge, 'edge')) {
+                        //判断要不要显示, 要则正常添加, 否则仅仅添加到缓存
+                        if (needToDisplayEdge.call(this, edge)) {
+                            this.addEdge(edge);
+                        } else {
+                            onlyAddEdgeToCache.call(this, edge);
+                        }
+                    }
+                }
+
+            }
+
+            //this.notify();
+        };
+
+
+        Graph.prototype.newNode = function (data) {
+            var node = new Node(this.nextNodeId++, data);
             this.addNode(node);
-        }
-    };
+            return node;
+        };
 
-    Graph.prototype.addEdge = function (edge) {
-        var exists = false;
-        //判断是否已存在传入的边
-        this.edges.forEach(function (e) {
-            if (edge.id === e.id) {
-                exists = true;
+        Graph.prototype.newEdge = function (source, target, data) {
+            var edge = new Edge(this.nextEdgeId++, source, target, data);
+            this.addEdge(edge);
+            return edge;
+        };
+
+
+// add nodes and edges from JSON object
+        Graph.prototype.loadJSON = function (json) {
+            /**
+             Springy's simple JSON format for graphs.
+
+             historically, Springy uses separate lists
+             of nodes and edges:
+
+             {
+                 "nodes": [
+                     "center",
+                     "left",
+                     "right",
+                     "up",
+                     "satellite"
+                 ],
+                 "edges": [
+                     ["center", "left"],
+                     ["center", "right"],
+                     ["center", "up"]
+                 ]
+             }
+
+             **/
+            // parse if a string is passed (EC5+ browsers)
+            if (typeof json == 'string' || json instanceof String) {
+                json = JSON.parse(json);
             }
-        });
 
-        if (!exists) {
-            this.edges.push(edge);
-            //lj+ 将edge缓存到 graphCache
-            this.graphCache.edgeSet[edge.id] = edge;
-            //根据类型归并到edgeTypeSet中
-            if (edge.data.type != null) {
-                if (!(edge.data.type in this.edgeTypeSet)) {
-                    this.edgeTypeSet[edge.data.type] = {};
+            if ('nodes' in json || 'edges' in json) {
+                this.addNodes.apply(this, json['nodes']);
+                this.addEdges.apply(this, json['edges']);
+            }
+        }
+
+
+// find the edges from node1 to node2
+        Graph.prototype.getEdges = function (node1, node2) {
+            if (node1.id in this.adjacency
+                && node2.id in this.adjacency[node1.id]) {
+                return this.adjacency[node1.id][node2.id];
+            }
+
+            return [];
+        };
+
+// remove a node and it's associated edges from the graph
+        Graph.prototype.removeNode = function (node) {
+            //lj+ 异常控制
+            // if (node === undefined || node == null) {
+            //    return;
+            // }
+
+            if (node.id in this.nodeSet) {
+                delete this.nodeSet[node.id];
+            }
+
+            for (var i = this.nodes.length - 1; i >= 0; i--) {
+                if (this.nodes[i].id === node.id) {
+                    this.nodes.splice(i, 1);
                 }
-                if(!(edge.data.type in this.graphCache.edgeTypeSet)) {
-                    this.graphCache.edgeTypeSet[edge.data.type] = {};
+            }
+            //nodeTypeSet中对应的node也要删除
+            if (node.data.type != null) {
+                delete  this.nodeTypeSet[node.data.type][node.id]
+            }
+
+            this.detachNode(node);
+        };
+
+// removes edges associated with a given node
+        Graph.prototype.detachNode = function (node) {
+            var tmpEdges = this.edges.slice();
+            tmpEdges.forEach(function (e) {
+                if (e.source.id === node.id || e.target.id === node.id) {
+                    this.removeEdge(e);
                 }
+            }, this);
 
-                this.edgeTypeSet[edge.data.type][edge.id] = edge;
-                this.graphCache.edgeTypeSet[edge.data.type][edge.id] = edge;
+            this.notify();
+        };
+
+// remove a node and it's associated edges from the graph
+        Graph.prototype.removeEdge = function (edge) {
+            for (var i = this.edges.length - 1; i >= 0; i--) {
+                if (this.edges[i].id === edge.id) {
+                    this.edges.splice(i, 1);	//若edges中有传入的edge. 则删除它
+                }
             }
 
-        }
+            //封装
+            function removeAdjacency(adjacency) {
+                for (var x in adjacency) {
+                    for (var y in adjacency[x]) {
+                        var edges = adjacency[x][y];
 
-        /*
-        * LJ: 正向和反向同步, 现存和缓存同步*/
-        //正向
-        if (!(edge.source.id in this.adjacency)) {
-            this.adjacency[edge.source.id] = {};
-        }
-        if (!(edge.source.id in this.graphCache.adjacency)) {
-            this.graphCache.adjacency[edge.source.id] = {};
-        }
+                        for (var j = edges.length - 1; j >= 0; j--) {
+                            if (adjacency[x][y][j].id === edge.id) {
+                                adjacency[x][y].splice(j, 1);
+                            }
+                        }
 
-        if (!(edge.target.id in this.adjacency[edge.source.id])) {
-            this.adjacency[edge.source.id][edge.target.id] = [];
-        }
-        if(!(edge.target.id in this.graphCache.adjacency[edge.source.id])){
-            this.graphCache.adjacency[edge.source.id][edge.target.id] = [];
-            }
-
-        //反向
-        if (!(edge.target.id in this.reverseAdjacency)) {
-            this.reverseAdjacency[edge.target.id] = {};
-        }
-        if(!(edge.target.id in this.graphCache.reverseAdjacency)) {
-            this.graphCache.reverseAdjacency[edge.target.id] = {};
-
-        }
-
-        if (!(edge.source.id in this.reverseAdjacency[edge.target.id])) {
-            this.reverseAdjacency[edge.target.id][edge.source.id] = [];
-        }
-        if (!(edge.source.id in this.graphCache.reverseAdjacency[edge.target.id])) {
-            this.graphCache.reverseAdjacency[edge.target.id][edge.source.id] = [];
-        }
-
-
-        exists = false;	//即使传入的 edge 在 edges 中已有, 也要判断内部的source和target有没有这个边id, 没有, 补上, 可能图形中就显示出来这个边
-        this.adjacency[edge.source.id][edge.target.id].forEach(function (e) {
-            if (edge.id === e.id) {
-                exists = true;
-            }
-        });
-
-        //保证adjacency和edges信息一致
-        if (!exists) {
-            this.adjacency[edge.source.id][edge.target.id].push(edge);
-        }
-
-        exists = false;
-        this.reverseAdjacency[edge.target.id][edge.source.id].forEach(function (e) {
-            if (edge.id === e.id) {
-                exists = true;
-            }
-        });
-        if (!exists) {
-            this.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
-            //this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
-        }
-
-        //Note: 若是恢复的边则会导致重复添加至缓存, 所以依然要判断缓存的中是已有这条边
-        exists = false;
-        this.graphCache.adjacency[edge.source.id][edge.target.id].forEach(function (e) {
-            if (edge.id === e.id) {
-                exists = true;
-            }
-        });
-        if (!exists) {
-            this.graphCache.adjacency[edge.source.id][edge.target.id].push(edge);
-        }
-        exists=false;
-        this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].forEach(function (e) {
-            if (edge.id === e.id) {
-                exists=true;    
-            }
-        });
-        if(!exists) {
-            this.graphCache.reverseAdjacency[edge.target.id][edge.source.id].push(edge);
-        }
-
-
-        this.notify();
-        return edge;
-    };
-
-    Graph.prototype.addEdges = function () {
-        // accepts variable number of arguments, where each argument
-        // is a triple [nodeid1, nodeid2, attributes]
-        for (var i = 0; i < arguments.length; i++) {
-            var e = arguments[i];
-            var node1 = this.nodeSet[e[0]];
-            if (node1 == undefined) {
-                throw new TypeError("invalid node name: " + e[0]);
-            }
-            var node2 = this.nodeSet[e[1]];
-            if (node2 == undefined) {
-                throw new TypeError("invalid node name: " + e[1]);
-            }
-            var attr = e[2];
-
-            this.newEdge(node1, node2, attr);
-        }
-    };
-
-    Graph.prototype.newNode = function (data) {
-        var node = new Node(this.nextNodeId++, data);
-        this.addNode(node);
-        return node;
-    };
-
-    Graph.prototype.newEdge = function (source, target, data) {
-        var edge = new Edge(this.nextEdgeId++, source, target, data);
-        this.addEdge(edge);
-        return edge;
-    };
-
-
-    // add nodes and edges from JSON object
-    Graph.prototype.loadJSON = function (json) {
-        /**
-         Springy's simple JSON format for graphs.
-
-         historically, Springy uses separate lists
-         of nodes and edges:
-
-         {
-             "nodes": [
-                 "center",
-                 "left",
-                 "right",
-                 "up",
-                 "satellite"
-             ],
-             "edges": [
-                 ["center", "left"],
-                 ["center", "right"],
-                 ["center", "up"]
-             ]
-         }
-
-         **/
-        // parse if a string is passed (EC5+ browsers)
-        if (typeof json == 'string' || json instanceof String) {
-            json = JSON.parse(json);
-        }
-
-        if ('nodes' in json || 'edges' in json) {
-            this.addNodes.apply(this, json['nodes']);
-            this.addEdges.apply(this, json['edges']);
-        }
-    }
-
-
-    // find the edges from node1 to node2
-    Graph.prototype.getEdges = function (node1, node2) {
-        if (node1.id in this.adjacency
-            && node2.id in this.adjacency[node1.id]) {
-            return this.adjacency[node1.id][node2.id];
-        }
-
-        return [];
-    };
-
-    // remove a node and it's associated edges from the graph
-    Graph.prototype.removeNode = function (node) {
-        //lj+ 异常控制
-        // if (node === undefined || node == null) {
-        //    return;
-        // }
-
-        if (node.id in this.nodeSet) {
-            delete this.nodeSet[node.id];
-        }
-
-        for (var i = this.nodes.length - 1; i >= 0; i--) {
-            if (this.nodes[i].id === node.id) {
-                this.nodes.splice(i, 1);
-            }
-        }
-        //nodeTypeSet中对应的node也要删除
-        if (node.data.type != null) {
-            delete  this.nodeTypeSet[node.data.type][node.id]
-        }
-
-        this.detachNode(node);
-    };
-
-    // removes edges associated with a given node
-    Graph.prototype.detachNode = function (node) {
-        var tmpEdges = this.edges.slice();
-        tmpEdges.forEach(function (e) {
-            if (e.source.id === node.id || e.target.id === node.id) {
-                this.removeEdge(e);
-            }
-        }, this);
-
-        this.notify();
-    };
-
-    // remove a node and it's associated edges from the graph
-    Graph.prototype.removeEdge = function (edge) {
-        for (var i = this.edges.length - 1; i >= 0; i--) {
-            if (this.edges[i].id === edge.id) {
-                this.edges.splice(i, 1);	//若edges中有传入的edge. 则删除它
-            }
-        }
-
-        //封装
-        function removeAdjacency(adjacency) {
-            for (var x in adjacency) {
-                for (var y in adjacency[x]) {
-                    var edges = adjacency[x][y];
-
-                    for (var j = edges.length - 1; j >= 0; j--) {
-                        if (adjacency[x][y][j].id === edge.id) {
-                            adjacency[x][y].splice(j, 1);
+                        // Clean up empty edge arrays
+                        if (adjacency[x][y].length == 0) {
+                            delete adjacency[x][y];
                         }
                     }
 
-                    // Clean up empty edge arrays
-                    if (adjacency[x][y].length == 0) {
-                        delete adjacency[x][y];
+                    // Clean up empty objects
+                    if (isEmpty(adjacency[x])) {
+                        delete adjacency[x];
                     }
                 }
+            }
 
-                // Clean up empty objects
-                if (isEmpty(adjacency[x])) {
-                    delete adjacency[x];
+            removeAdjacency(this.adjacency);
+            removeAdjacency(this.reverseAdjacency);
+
+            //edgeTypeSet对应的edge也要删除
+            if (edge.data.type != null) {
+                delete  this.edgeTypeSet[edge.data.type][edge.id];
+            }
+
+
+            this.notify();
+        };
+
+        /**批量删除点
+         * @author LJ*/
+        Graph.prototype.removeNodeByType = function (nodeTypeName) {
+            //在当前图中取出本类别所有node
+            this.removeByType(nodeTypeName, this.nodeTypeSet, "node");
+        };
+
+        /**批量删除边
+         * @author LJ*/
+        Graph.prototype.removeEdgeByType = function (edgeTypeName) {
+            this.removeByType(edgeTypeName, this.edgeTypeSet, "edge");
+        };
+
+        Graph.prototype.removeByType = function (typeName, typeSet, graphType) {
+            //在当前图中取出本类别所有node / edge 逐一删除
+            for (var neId in typeSet[typeName]) {
+                var ne = typeSet[typeName][neId];
+                switch (graphType) {
+                    case "node":
+                        this.removeNode(ne);
+                        break;
+                    case "edge":
+                        this.removeEdge(ne);
                 }
             }
-        }
-
-        removeAdjacency(this.adjacency);
-        removeAdjacency(this.reverseAdjacency);
-
-        //edgeTypeSet对应的edge也要删除
-        if (edge.data.type != null) {
-            delete  this.edgeTypeSet[edge.data.type][edge.id];
-        }
+            //当前类别中的node / edge全部干掉了, 则本类别也要干掉
+            delete typeSet[typeName];
+        };
 
 
-        this.notify();
-    };
-
-    /**批量删除点
-     * @author LJ*/
-    Graph.prototype.removeNodeByType = function (nodeTypeName) {
-        //在当前图中取出本类别所有node
-        this.removeByType(nodeTypeName, this.nodeTypeSet, "node");
-    };
-
-    /**批量删除边
-     * @author LJ*/
-    Graph.prototype.removeEdgeByType = function (edgeTypeName) {
-        this.removeByType(edgeTypeName, this.edgeTypeSet, "edge");
-    };
-
-    Graph.prototype.removeByType = function (typeName, typeSet, graphType) {
-        //在当前图中取出本类别所有node / edge 逐一删除
-        for (var neId in typeSet[typeName]) {
-            var ne = typeSet[typeName][neId];
-            switch (graphType) {
-                case "node":
-                    this.removeNode(ne);
-                    break;
-                case "edge":
-                    this.removeEdge(ne);
-            }
-        }
-        //当前类别中的node / edge全部干掉了, 则本类别也要干掉
-        delete typeSet[typeName];
-    };
-
-
-    /**根据nodeId,...批量恢复显示之前删除的node
-     * @author LJ
-     * @param nodeIds nodeId数组
-     */
+        /**根据nodeId,...批量恢复显示之前删除的node
+         * @author LJ
+         * @param nodeIds nodeId数组
+         */
 // Graph.prototype.recoverNodeByIds = function (nodeIds) {
 //     for (var i = 0; i < nodeIds.length; i++) {
 //         var nodeId = nodeIds[i];
@@ -457,48 +650,62 @@
 //     }
 // };
 
-    /**恢复指定类型的点*/
-    Graph.prototype.recoverNodeByType = function (nodeTypeName) {
-        /*不论当前类别对应的点或边是否最终成功显示, 但当前要恢复的类别只要是合法的类别(i.e.在缓存中能够找到到),
-        * 就应当将当前类别添加到 *typeSet的字段中*/
-        if (nodeTypeName in this.graphCache.nodeTypeSet) {
-            //说明当前类型是一开始图形初始化时就有的类型, 而不是后期随意变动的类型
-            this.nodeTypeSet[nodeTypeName] = {};
-        }
 
-        //1.根据类型名取出对应的所有node list
-        for (var nodeId in this.graphCache.nodeTypeSet[nodeTypeName]) {
-            var node = this.graphCache.nodeTypeSet[nodeTypeName][nodeId];
-            //2.遍历node list, 取出node关联的边, 若边的端点都在显示状态, 且这条边属于显示类别中, 则添加对应的边
-            this.addNode(node);
-            smartAddAdjacentEdge(this.graphCache.adjacency, this);
-            smartAddAdjacentEdge(this.graphCache.reverseAdjacency, this);
-        }
-
-        function smartAddAdjacentEdge(adjacency, graph) {
-            for (var nodeKey in adjacency[node.id]) {
-                //target node不在在显示状态, 则此边不显示
-                if (nodeKey in graph.nodeSet) {
-                    //target node在显示状态, 则遍历显示边, 但边的类型要属于显示
-                    adjacency[node.id][nodeKey].forEach(function (edge) {
-                        if (edge.data.type != null) {
-                            if (edge.data.type in graph.edgeTypeSet) {
-                                console.log("graph.edgeTypeSet:");
-                                console.log(graph.edgeTypeSet);
-                                graph.addEdge(edge);
-                            }
-                        }else { //若边没有type属性, 则不受类型开关限制, 始终显示
-                            graph.addEdge(edge);
-                        }
-                    })
+        /**根据当前图形中规定的显示的edgeType, 批量添加edge*/
+        Graph.prototype.addEdgesIncludedInShowedEdgeType = function (edges) {
+            var self = this;
+            for (var i = 0; i < edges.length; i++) {
+                var edge = edges[i];
+                if (edge.data != null && edge.data.type != null) {
+                    console.log("self.edgeTypeSet");
+                    console.log(self.edgeTypeSet);
+                    if (edge.data.type in self.edgeTypeSet) {
+                        console.log("self.edgeTypeSet:");
+                        console.log(self.edgeTypeSet);
+                        self.addEdge(edge);
+                    }
+                } else { //若边没有type属性, 则不受类型开关限制, 始终显示
+                    self.addEdge(edge);
                 }
             }
-        }
+        };
 
-    };
 
-    /**
-     * @author LJ*/
+
+        /**恢复指定类型的点*/
+        Graph.prototype.recoverNodeByType = function (nodeTypeName) {
+            /*不论当前类别对应的点或边是否最终成功显示, 但当前要恢复的类别只要是合法的类别(i.e.在缓存中能够找到到),
+            * 就应当将当前类别添加到 *typeSet的字段中*/
+            if (nodeTypeName in this.graphCache.nodeTypeSet) {
+                //说明当前类型是一开始图形初始化时就有的类型, 而不是后期随意变动的类型
+                this.nodeTypeSet[nodeTypeName] = {};
+            }
+
+            function smartAddAdjacentEdge(adjacency, node) {
+                for (var nodeKey in adjacency[node.id]) {
+                    //target node不在在显示状态, 则此边不显示
+                    if (nodeKey in this.nodeSet) {
+                        //target node在显示状态, 则遍历显示边, 但边的类型要属于显示
+                        var edges = adjacency[node.id][nodeKey];
+                        this.addEdgesIncludedInShowedEdgeType(edges);
+                    }
+                }
+            }
+
+            //1.根据类型名取出对应的所有node list
+            for (var nodeId in this.graphCache.nodeTypeSet[nodeTypeName]) {
+                var node = this.graphCache.nodeTypeSet[nodeTypeName][nodeId];
+                //2.遍历node list, 取出node关联的边, 若边的端点都在显示状态, 且这条边属于显示类别中, 则添加对应的边
+                this.addNode(node);
+                smartAddAdjacentEdge.call(this,this.graphCache.adjacency, node);
+                smartAddAdjacentEdge.call(this,this.graphCache.reverseAdjacency, node);
+            }
+
+        };
+
+
+        /**
+         * @author LJ*/
 // Graph.prototype.recoverEdgeByIds = function (edgeIds) {
 //     function hasEndPoints(edge, graph) {
 //         var flag = false;
@@ -522,396 +729,396 @@
 //     }
 // };
 
-    Graph.prototype.recoverEdgeByType = function (edgeTypeName) {
-        if (edgeTypeName in this.graphCache.edgeTypeSet) {
-            //说明当前类型是一开始图形初始化时就有的类型, 而不是后期随意变动的类型
-            this.edgeTypeSet[edgeTypeName] = {};
+        Graph.prototype.recoverEdgeByType = function (edgeTypeName) {
+            if (edgeTypeName in this.graphCache.edgeTypeSet) {
+                //说明当前类型是一开始图形初始化时就有的类型, 而不是后期随意变动的类型
+                this.edgeTypeSet[edgeTypeName] = {};
+            }
+
+            for (var edgeId in this.graphCache.edgeTypeSet[edgeTypeName]) {
+                var edge = this.graphCache.edgeTypeSet[edgeTypeName][edgeId];
+                if (edge.source.id in this.nodeSet && edge.target.id in this.nodeSet) {
+                    this.addEdge(edge);
+                }
+            }
+
+        };
+
+
+        /* Merge a list of nodes and edges into the current graph. eg.
+        var o = {
+            nodes: [
+                {id: 123, data: {type: 'user', userid: 123, displayname: 'aaa'}},
+                {id: 234, data: {type: 'user', userid: 234, displayname: 'bbb'}}
+            ],
+            edges: [
+                {from: 0, to: 1, type: 'submitted_design', directed: true, data: {weight: }}
+            ]
         }
+        */
+        Graph.prototype.merge = function (data) {
+            var nodes = [];
+            data.nodes.forEach(function (n) {
+                nodes.push(this.addNode(new Node(n.id, n.data)));
+            }, this);
 
-        for (var edgeId in this.graphCache.edgeTypeSet[edgeTypeName]) {
-            var edge = this.graphCache.edgeTypeSet[edgeTypeName][edgeId];
-            if (edge.source.id in this.nodeSet && edge.target.id in this.nodeSet) {
-                this.addEdge(edge);
-            }
-        }
+            data.edges.forEach(function (e) {
+                var from = nodes[e.from];
+                var to = nodes[e.to];
 
-    };
+                var id = (e.directed)
+                    ? (id = e.type + "-" + from.id + "-" + to.id)
+                    : (from.id < to.id) // normalise id for non-directed edges
+                        ? e.type + "-" + from.id + "-" + to.id
+                        : e.type + "-" + to.id + "-" + from.id;
 
+                var edge = this.addEdge(new Edge(id, from, to, e.data));
+                edge.data.type = e.type;
+            }, this);
+        };
 
-    /* Merge a list of nodes and edges into the current graph. eg.
-    var o = {
-        nodes: [
-            {id: 123, data: {type: 'user', userid: 123, displayname: 'aaa'}},
-            {id: 234, data: {type: 'user', userid: 234, displayname: 'bbb'}}
-        ],
-        edges: [
-            {from: 0, to: 1, type: 'submitted_design', directed: true, data: {weight: }}
-        ]
-    }
-    */
-    Graph.prototype.merge = function (data) {
-        var nodes = [];
-        data.nodes.forEach(function (n) {
-            nodes.push(this.addNode(new Node(n.id, n.data)));
-        }, this);
+        Graph.prototype.filterNodes = function (fn) {
+            var tmpNodes = this.nodes.slice();
+            tmpNodes.forEach(function (n) {
+                if (!fn(n)) {
+                    this.removeNode(n);
+                }
+            }, this);
+        };
 
-        data.edges.forEach(function (e) {
-            var from = nodes[e.from];
-            var to = nodes[e.to];
-
-            var id = (e.directed)
-                ? (id = e.type + "-" + from.id + "-" + to.id)
-                : (from.id < to.id) // normalise id for non-directed edges
-                    ? e.type + "-" + from.id + "-" + to.id
-                    : e.type + "-" + to.id + "-" + from.id;
-
-            var edge = this.addEdge(new Edge(id, from, to, e.data));
-            edge.data.type = e.type;
-        }, this);
-    };
-
-    Graph.prototype.filterNodes = function (fn) {
-        var tmpNodes = this.nodes.slice();
-        tmpNodes.forEach(function (n) {
-            if (!fn(n)) {
-                this.removeNode(n);
-            }
-        }, this);
-    };
-
-    Graph.prototype.filterEdges = function (fn) {
-        var tmpEdges = this.edges.slice();
-        tmpEdges.forEach(function (e) {
-            if (!fn(e)) {
-                this.removeEdge(e);
-            }
-        }, this);
-    };
+        Graph.prototype.filterEdges = function (fn) {
+            var tmpEdges = this.edges.slice();
+            tmpEdges.forEach(function (e) {
+                if (!fn(e)) {
+                    this.removeEdge(e);
+                }
+            }, this);
+        };
 
 
-    Graph.prototype.addGraphListener = function (obj) {
-        this.eventListeners.push(obj);
-    };
+        Graph.prototype.addGraphListener = function (obj) {
+            this.eventListeners.push(obj);
+        };
 
-    Graph.prototype.notify = function () {
-        this.eventListeners.forEach(function (obj) {
-            obj.graphChanged();
-        });
-    };
+        Graph.prototype.notify = function () {
+            this.eventListeners.forEach(function (obj) {
+                obj.graphChanged();
+            });
+        };
 
 // -----------
-    var Layout = Springy.Layout = {};
-    Layout.ForceDirected = function (graph, stiffness, repulsion, damping, minEnergyThreshold, maxSpeed) {
-        this.graph = graph;
-        this.stiffness = stiffness; // spring stiffness constant
-        this.repulsion = repulsion; // repulsion constant
-        this.damping = damping; // velocity damping factor
-        this.minEnergyThreshold = minEnergyThreshold || 0.01; //threshold used to determine render stop
-        this.maxSpeed = maxSpeed || Infinity; // nodes aren't allowed to exceed this speed
+        var Layout = Springy.Layout = {};
+        Layout.ForceDirected = function (graph, stiffness, repulsion, damping, minEnergyThreshold, maxSpeed) {
+            this.graph = graph;
+            this.stiffness = stiffness; // spring stiffness constant
+            this.repulsion = repulsion; // repulsion constant
+            this.damping = damping; // velocity damping factor
+            this.minEnergyThreshold = minEnergyThreshold || 0.01; //threshold used to determine render stop
+            this.maxSpeed = maxSpeed || Infinity; // nodes aren't allowed to exceed this speed
 
-        this.nodePoints = {}; // keep track of points associated with nodes
-        this.edgeSprings = {}; // keep track of springs associated with edges
-    };
+            this.nodePoints = {}; // keep track of points associated with nodes
+            this.edgeSprings = {}; // keep track of springs associated with edges
+        };
 
-    Layout.ForceDirected.prototype.point = function (node) {
-        if (!(node.id in this.nodePoints)) {
-            var mass = (node.data.mass !== undefined) ? node.data.mass : 1.0;
-            this.nodePoints[node.id] = new Layout.ForceDirected.Point(Vector.random(), mass);
-        }
-
-        return this.nodePoints[node.id];
-    };
-
-    Layout.ForceDirected.prototype.spring = function (edge) {
-        if (!(edge.id in this.edgeSprings)) {
-            var length = (edge.data.length !== undefined) ? edge.data.length : 1.0;
-
-            var existingSpring = false;
-
-            var from = this.graph.getEdges(edge.source, edge.target);
-            from.forEach(function (e) {
-                if (existingSpring === false && e.id in this.edgeSprings) {
-                    existingSpring = this.edgeSprings[e.id];
-                }
-            }, this);
-
-            if (existingSpring !== false) {
-                return new Layout.ForceDirected.Spring(existingSpring.point1, existingSpring.point2, 0.0, 0.0);
+        Layout.ForceDirected.prototype.point = function (node) {
+            if (!(node.id in this.nodePoints)) {
+                var mass = (node.data.mass !== undefined) ? node.data.mass : 1.0;
+                this.nodePoints[node.id] = new Layout.ForceDirected.Point(Vector.random(), mass);
             }
 
-            var to = this.graph.getEdges(edge.target, edge.source);
-            from.forEach(function (e) {
-                if (existingSpring === false && e.id in this.edgeSprings) {
-                    existingSpring = this.edgeSprings[e.id];
-                }
-            }, this);
+            return this.nodePoints[node.id];
+        };
 
-            if (existingSpring !== false) {
-                return new Layout.ForceDirected.Spring(existingSpring.point2, existingSpring.point1, 0.0, 0.0);
+        Layout.ForceDirected.prototype.spring = function (edge) {
+            if (!(edge.id in this.edgeSprings)) {
+                var length = (edge.data.length !== undefined) ? edge.data.length : 1.0;
+
+                var existingSpring = false;
+
+                var from = this.graph.getEdges(edge.source, edge.target);
+                from.forEach(function (e) {
+                    if (existingSpring === false && e.id in this.edgeSprings) {
+                        existingSpring = this.edgeSprings[e.id];
+                    }
+                }, this);
+
+                if (existingSpring !== false) {
+                    return new Layout.ForceDirected.Spring(existingSpring.point1, existingSpring.point2, 0.0, 0.0);
+                }
+
+                var to = this.graph.getEdges(edge.target, edge.source);
+                from.forEach(function (e) {
+                    if (existingSpring === false && e.id in this.edgeSprings) {
+                        existingSpring = this.edgeSprings[e.id];
+                    }
+                }, this);
+
+                if (existingSpring !== false) {
+                    return new Layout.ForceDirected.Spring(existingSpring.point2, existingSpring.point1, 0.0, 0.0);
+                }
+
+                this.edgeSprings[edge.id] = new Layout.ForceDirected.Spring(
+                    this.point(edge.source), this.point(edge.target), length, this.stiffness
+                );
             }
 
-            this.edgeSprings[edge.id] = new Layout.ForceDirected.Spring(
-                this.point(edge.source), this.point(edge.target), length, this.stiffness
-            );
-        }
-
-        return this.edgeSprings[edge.id];
-    };
+            return this.edgeSprings[edge.id];
+        };
 
 // callback should accept two arguments: Node, Point
-    Layout.ForceDirected.prototype.eachNode = function (callback) {
-        var t = this;
-        this.graph.nodes.forEach(function (n) {
-            callback.call(t, n, t.point(n));
-        });
-    };
+        Layout.ForceDirected.prototype.eachNode = function (callback) {
+            var t = this;
+            this.graph.nodes.forEach(function (n) {
+                callback.call(t, n, t.point(n));
+            });
+        };
 
 // callback should accept two arguments: Edge, Spring
-    Layout.ForceDirected.prototype.eachEdge = function (callback) {
-        var t = this;
-        this.graph.edges.forEach(function (e) {
-            callback.call(t, e, t.spring(e));
-        });
-    };
+        Layout.ForceDirected.prototype.eachEdge = function (callback) {
+            var t = this;
+            this.graph.edges.forEach(function (e) {
+                callback.call(t, e, t.spring(e));
+            });
+        };
 
 // callback should accept one argument: Spring
-    Layout.ForceDirected.prototype.eachSpring = function (callback) {
-        var t = this;
-        this.graph.edges.forEach(function (e) {
-            callback.call(t, t.spring(e));
-        });
-    };
+        Layout.ForceDirected.prototype.eachSpring = function (callback) {
+            var t = this;
+            this.graph.edges.forEach(function (e) {
+                callback.call(t, t.spring(e));
+            });
+        };
 
 
 // Physics stuff
-    Layout.ForceDirected.prototype.applyCoulombsLaw = function () {
-        this.eachNode(function (n1, point1) {
-            this.eachNode(function (n2, point2) {
-                if (point1 !== point2) {
-                    var d = point1.p.subtract(point2.p);
-                    var distance = d.magnitude() + 0.1; // avoid massive forces at small distances (and divide by zero)
-                    var direction = d.normalise();
+        Layout.ForceDirected.prototype.applyCoulombsLaw = function () {
+            this.eachNode(function (n1, point1) {
+                this.eachNode(function (n2, point2) {
+                    if (point1 !== point2) {
+                        var d = point1.p.subtract(point2.p);
+                        var distance = d.magnitude() + 0.1; // avoid massive forces at small distances (and divide by zero)
+                        var direction = d.normalise();
 
-                    // apply force to each end point
-                    point1.applyForce(direction.multiply(this.repulsion).divide(distance * distance * 0.5));
-                    point2.applyForce(direction.multiply(this.repulsion).divide(distance * distance * -0.5));
-                }
+                        // apply force to each end point
+                        point1.applyForce(direction.multiply(this.repulsion).divide(distance * distance * 0.5));
+                        point2.applyForce(direction.multiply(this.repulsion).divide(distance * distance * -0.5));
+                    }
+                });
             });
-        });
-    };
+        };
 
-    Layout.ForceDirected.prototype.applyHookesLaw = function () {
-        this.eachSpring(function (spring) {
-            var d = spring.point2.p.subtract(spring.point1.p); // the direction of the spring
-            var displacement = spring.length - d.magnitude();
-            var direction = d.normalise();
+        Layout.ForceDirected.prototype.applyHookesLaw = function () {
+            this.eachSpring(function (spring) {
+                var d = spring.point2.p.subtract(spring.point1.p); // the direction of the spring
+                var displacement = spring.length - d.magnitude();
+                var direction = d.normalise();
 
-            // apply force to each end point
-            spring.point1.applyForce(direction.multiply(spring.k * displacement * -0.5));
-            spring.point2.applyForce(direction.multiply(spring.k * displacement * 0.5));
-        });
-    };
+                // apply force to each end point
+                spring.point1.applyForce(direction.multiply(spring.k * displacement * -0.5));
+                spring.point2.applyForce(direction.multiply(spring.k * displacement * 0.5));
+            });
+        };
 
-    Layout.ForceDirected.prototype.attractToCentre = function () {
-        this.eachNode(function (node, point) {
-            var direction = point.p.multiply(-1.0);
-            point.applyForce(direction.multiply(this.repulsion / 50.0));
-        });
-    };
+        Layout.ForceDirected.prototype.attractToCentre = function () {
+            this.eachNode(function (node, point) {
+                var direction = point.p.multiply(-1.0);
+                point.applyForce(direction.multiply(this.repulsion / 50.0));
+            });
+        };
 
 
-    Layout.ForceDirected.prototype.updateVelocity = function (timestep) {
-        this.eachNode(function (node, point) {
-            // Is this, along with updatePosition below, the only places that your
-            // integration code exist?
-            point.v = point.v.add(point.a.multiply(timestep)).multiply(this.damping);
-            if (point.v.magnitude() > this.maxSpeed) {
-                point.v = point.v.normalise().multiply(this.maxSpeed);
-            }
-            point.a = new Vector(0, 0);
-        });
-    };
+        Layout.ForceDirected.prototype.updateVelocity = function (timestep) {
+            this.eachNode(function (node, point) {
+                // Is this, along with updatePosition below, the only places that your
+                // integration code exist?
+                point.v = point.v.add(point.a.multiply(timestep)).multiply(this.damping);
+                if (point.v.magnitude() > this.maxSpeed) {
+                    point.v = point.v.normalise().multiply(this.maxSpeed);
+                }
+                point.a = new Vector(0, 0);
+            });
+        };
 
-    Layout.ForceDirected.prototype.updatePosition = function (timestep) {
-        this.eachNode(function (node, point) {
-            // Same question as above; along with updateVelocity, is this all of
-            // your integration code?
-            point.p = point.p.add(point.v.multiply(timestep));
-        });
-    };
+        Layout.ForceDirected.prototype.updatePosition = function (timestep) {
+            this.eachNode(function (node, point) {
+                // Same question as above; along with updateVelocity, is this all of
+                // your integration code?
+                point.p = point.p.add(point.v.multiply(timestep));
+            });
+        };
 
 // Calculate the total kinetic energy of the system
-    Layout.ForceDirected.prototype.totalEnergy = function (timestep) {
-        var energy = 0.0;
-        this.eachNode(function (node, point) {
-            var speed = point.v.magnitude();
-            energy += 0.5 * point.m * speed * speed;
-        });
+        Layout.ForceDirected.prototype.totalEnergy = function (timestep) {
+            var energy = 0.0;
+            this.eachNode(function (node, point) {
+                var speed = point.v.magnitude();
+                energy += 0.5 * point.m * speed * speed;
+            });
 
-        return energy;
-    };
-
-    var __bind = function (fn, me) {
-        return function () {
-            return fn.apply(me, arguments);
+            return energy;
         };
-    }; // stolen from coffeescript, thanks jashkenas! ;-)
 
-    Springy.requestAnimationFrame = __bind(this.requestAnimationFrame ||
-        this.webkitRequestAnimationFrame ||
-        this.mozRequestAnimationFrame ||
-        this.oRequestAnimationFrame ||
-        this.msRequestAnimationFrame ||
-        (function (callback, element) {
-            this.setTimeout(callback, 10);
-        }), this);
+        var __bind = function (fn, me) {
+            return function () {
+                return fn.apply(me, arguments);
+            };
+        }; // stolen from coffeescript, thanks jashkenas! ;-)
+
+        Springy.requestAnimationFrame = __bind(this.requestAnimationFrame ||
+            this.webkitRequestAnimationFrame ||
+            this.mozRequestAnimationFrame ||
+            this.oRequestAnimationFrame ||
+            this.msRequestAnimationFrame ||
+            (function (callback, element) {
+                this.setTimeout(callback, 10);
+            }), this);
 
 
-    /**
-     * Start simulation if it's not running already.
-     * In case it's running then the call is ignored, and none of the callbacks passed is ever executed.
-     */
-    Layout.ForceDirected.prototype.start = function (render, onRenderStop, onRenderStart) {
-        var t = this;
+        /**
+         * Start simulation if it's not running already.
+         * In case it's running then the call is ignored, and none of the callbacks passed is ever executed.
+         */
+        Layout.ForceDirected.prototype.start = function (render, onRenderStop, onRenderStart) {
+            var t = this;
 
-        if (this._started) return;
-        this._started = true;
-        this._stop = false;
+            if (this._started) return;
+            this._started = true;
+            this._stop = false;
 
-        if (onRenderStart !== undefined) {
-            onRenderStart();
+            if (onRenderStart !== undefined) {
+                onRenderStart();
+            }
+
+            Springy.requestAnimationFrame(function step() {
+                t.tick(0.03);
+
+                if (render !== undefined) {
+                    render();
+                }
+
+                // stop simulation when energy of the system goes below a threshold
+                if (t._stop || t.totalEnergy() < t.minEnergyThreshold) {
+                    t._started = false;
+                    if (onRenderStop !== undefined) {
+                        onRenderStop();
+                    }
+                } else {
+                    Springy.requestAnimationFrame(step);
+                }
+            });
+        };
+
+        Layout.ForceDirected.prototype.stop = function () {
+            this._stop = true;
         }
 
-        Springy.requestAnimationFrame(function step() {
-            t.tick(0.03);
-
-            if (render !== undefined) {
-                render();
-            }
-
-            // stop simulation when energy of the system goes below a threshold
-            if (t._stop || t.totalEnergy() < t.minEnergyThreshold) {
-                t._started = false;
-                if (onRenderStop !== undefined) {
-                    onRenderStop();
-                }
-            } else {
-                Springy.requestAnimationFrame(step);
-            }
-        });
-    };
-
-    Layout.ForceDirected.prototype.stop = function () {
-        this._stop = true;
-    }
-
-    Layout.ForceDirected.prototype.tick = function (timestep) {
-        this.applyCoulombsLaw();
-        this.applyHookesLaw();
-        this.attractToCentre();
-        this.updateVelocity(timestep);
-        this.updatePosition(timestep);
-    };
+        Layout.ForceDirected.prototype.tick = function (timestep) {
+            this.applyCoulombsLaw();
+            this.applyHookesLaw();
+            this.attractToCentre();
+            this.updateVelocity(timestep);
+            this.updatePosition(timestep);
+        };
 
 // Find the nearest point to a particular position
-    Layout.ForceDirected.prototype.nearest = function (pos) {
-        var min = {node: null, point: null, distance: null};
-        var t = this;
-        this.graph.nodes.forEach(function (n) {
-            var point = t.point(n);
-            var distance = point.p.subtract(pos).magnitude();
+        Layout.ForceDirected.prototype.nearest = function (pos) {
+            var min = {node: null, point: null, distance: null};
+            var t = this;
+            this.graph.nodes.forEach(function (n) {
+                var point = t.point(n);
+                var distance = point.p.subtract(pos).magnitude();
 
-            if (min.distance === null || distance < min.distance) {
-                min = {node: n, point: point, distance: distance};
-            }
-        });
+                if (min.distance === null || distance < min.distance) {
+                    min = {node: n, point: point, distance: distance};
+                }
+            });
 
-        return min;
-    };
+            return min;
+        };
 
 // returns [bottomleft, topright]
-    Layout.ForceDirected.prototype.getBoundingBox = function () {
-        var bottomleft = new Vector(-2, -2);
-        var topright = new Vector(2, 2);
+        Layout.ForceDirected.prototype.getBoundingBox = function () {
+            var bottomleft = new Vector(-2, -2);
+            var topright = new Vector(2, 2);
 
-        this.eachNode(function (n, point) {
-            if (point.p.x < bottomleft.x) {
-                bottomleft.x = point.p.x;
-            }
-            if (point.p.y < bottomleft.y) {
-                bottomleft.y = point.p.y;
-            }
-            if (point.p.x > topright.x) {
-                topright.x = point.p.x;
-            }
-            if (point.p.y > topright.y) {
-                topright.y = point.p.y;
-            }
-        });
+            this.eachNode(function (n, point) {
+                if (point.p.x < bottomleft.x) {
+                    bottomleft.x = point.p.x;
+                }
+                if (point.p.y < bottomleft.y) {
+                    bottomleft.y = point.p.y;
+                }
+                if (point.p.x > topright.x) {
+                    topright.x = point.p.x;
+                }
+                if (point.p.y > topright.y) {
+                    topright.y = point.p.y;
+                }
+            });
 
-        var padding = topright.subtract(bottomleft).multiply(0.07); // ~5% padding
+            var padding = topright.subtract(bottomleft).multiply(0.07); // ~5% padding
 
-        return {bottomleft: bottomleft.subtract(padding), topright: topright.add(padding)};
-    };
+            return {bottomleft: bottomleft.subtract(padding), topright: topright.add(padding)};
+        };
 
 
 // Vector
-    var Vector = Springy.Vector = function (x, y) {
-        this.x = x;
-        this.y = y;
-    };
+        var Vector = Springy.Vector = function (x, y) {
+            this.x = x;
+            this.y = y;
+        };
 
-    Vector.random = function () {
-        return new Vector(10.0 * (Math.random() - 0.5), 10.0 * (Math.random() - 0.5));
-    };
+        Vector.random = function () {
+            return new Vector(10.0 * (Math.random() - 0.5), 10.0 * (Math.random() - 0.5));
+        };
 
-    Vector.prototype.add = function (v2) {
-        return new Vector(this.x + v2.x, this.y + v2.y);
-    };
+        Vector.prototype.add = function (v2) {
+            return new Vector(this.x + v2.x, this.y + v2.y);
+        };
 
-    Vector.prototype.subtract = function (v2) {
-        return new Vector(this.x - v2.x, this.y - v2.y);
-    };
+        Vector.prototype.subtract = function (v2) {
+            return new Vector(this.x - v2.x, this.y - v2.y);
+        };
 
-    Vector.prototype.multiply = function (n) {
-        return new Vector(this.x * n, this.y * n);
-    };
+        Vector.prototype.multiply = function (n) {
+            return new Vector(this.x * n, this.y * n);
+        };
 
-    Vector.prototype.divide = function (n) {
-        return new Vector((this.x / n) || 0, (this.y / n) || 0); // Avoid divide by zero errors..
-    };
+        Vector.prototype.divide = function (n) {
+            return new Vector((this.x / n) || 0, (this.y / n) || 0); // Avoid divide by zero errors..
+        };
 
-    Vector.prototype.magnitude = function () {
-        return Math.sqrt(this.x * this.x + this.y * this.y);
-    };
+        Vector.prototype.magnitude = function () {
+            return Math.sqrt(this.x * this.x + this.y * this.y);
+        };
 
-    Vector.prototype.normal = function () {
-        return new Vector(-this.y, this.x);
-    };
+        Vector.prototype.normal = function () {
+            return new Vector(-this.y, this.x);
+        };
 
-    Vector.prototype.normalise = function () {
-        return this.divide(this.magnitude());
-    };
+        Vector.prototype.normalise = function () {
+            return this.divide(this.magnitude());
+        };
 
 // Point
-    Layout.ForceDirected.Point = function (position, mass) {
-        this.p = position; // position
-        this.m = mass; // mass
-        this.v = new Vector(0, 0); // velocity
-        this.a = new Vector(0, 0); // acceleration
-    };
+        Layout.ForceDirected.Point = function (position, mass) {
+            this.p = position; // position
+            this.m = mass; // mass
+            this.v = new Vector(0, 0); // velocity
+            this.a = new Vector(0, 0); // acceleration
+        };
 
-    Layout.ForceDirected.Point.prototype.applyForce = function (force) {
-        this.a = this.a.add(force.divide(this.m));
-    };
+        Layout.ForceDirected.Point.prototype.applyForce = function (force) {
+            this.a = this.a.add(force.divide(this.m));
+        };
 
 // Spring
-    Layout.ForceDirected.Spring = function (point1, point2, length, k) {
-        this.point1 = point1;
-        this.point2 = point2;
-        this.length = length; // spring length at rest
-        this.k = k; // spring constant (See Hooke's law) .. how stiff the spring is
-    };
+        Layout.ForceDirected.Spring = function (point1, point2, length, k) {
+            this.point1 = point1;
+            this.point2 = point2;
+            this.length = length; // spring length at rest
+            this.k = k; // spring constant (See Hooke's law) .. how stiff the spring is
+        };
 
 // Layout.ForceDirected.Spring.prototype.distanceToPoint = function(point)
 // {
@@ -922,98 +1129,99 @@
 // 	return Math.abs(ac.x * n.x + ac.y * n.y);
 // };
 
-    /**
-     * Renderer handles the layout rendering loop
-     * @param onRenderStop optional callback function that gets executed whenever rendering stops.
-     * @param onRenderStart optional callback function that gets executed whenever rendering starts.
-     * @param onRenderFrame optional callback function that gets executed after each frame is rendered.
-     */
-    var Renderer = Springy.Renderer = function (layout, clear, drawEdge, drawNode, onRenderStop, onRenderStart, onRenderFrame) {
-        this.layout = layout;
-        this.clear = clear;
-        this.drawEdge = drawEdge;
-        this.drawNode = drawNode;
-        this.onRenderStop = onRenderStop;
-        this.onRenderStart = onRenderStart;
-        this.onRenderFrame = onRenderFrame;
+        /**
+         * Renderer handles the layout rendering loop
+         * @param onRenderStop optional callback function that gets executed whenever rendering stops.
+         * @param onRenderStart optional callback function that gets executed whenever rendering starts.
+         * @param onRenderFrame optional callback function that gets executed after each frame is rendered.
+         */
+        var Renderer = Springy.Renderer = function (layout, clear, drawEdge, drawNode, onRenderStop, onRenderStart, onRenderFrame) {
+            this.layout = layout;
+            this.clear = clear;
+            this.drawEdge = drawEdge;
+            this.drawNode = drawNode;
+            this.onRenderStop = onRenderStop;
+            this.onRenderStart = onRenderStart;
+            this.onRenderFrame = onRenderFrame;
 
-        this.layout.graph.addGraphListener(this);
-    }
+            this.layout.graph.addGraphListener(this);
+        }
 
-    Renderer.prototype.graphChanged = function (e) {
-        this.start();
-    };
+        Renderer.prototype.graphChanged = function (e) {
+            this.start();
+        };
 
-    /**
-     * Starts the simulation of the layout in use.
-     *
-     * Note that in case the algorithm is still or already running then the layout that's in use
-     * might silently ignore the call, and your optional <code>done</code> callback is never executed.
-     * At least the built-in ForceDirected layout behaves in this way.
-     *
-     * @param done An optional callback function that gets executed when the springy algorithm stops,
-     * either because it ended or because stop() was called.
-     */
-    Renderer.prototype.start = function (done) {
-        var t = this;
-        this.layout.start(function render() {
-            t.clear();
+        /**
+         * Starts the simulation of the layout in use.
+         *
+         * Note that in case the algorithm is still or already running then the layout that's in use
+         * might silently ignore the call, and your optional <code>done</code> callback is never executed.
+         * At least the built-in ForceDirected layout behaves in this way.
+         *
+         * @param done An optional callback function that gets executed when the springy algorithm stops,
+         * either because it ended or because stop() was called.
+         */
+        Renderer.prototype.start = function (done) {
+            var t = this;
+            this.layout.start(function render() {
+                t.clear();
 
-            t.layout.eachEdge(function (edge, spring) {
-                t.drawEdge(edge, spring.point1.p, spring.point2.p);
-            });
+                t.layout.eachEdge(function (edge, spring) {
+                    t.drawEdge(edge, spring.point1.p, spring.point2.p);
+                });
 
-            t.layout.eachNode(function (node, point) {
-                t.drawNode(node, point.p);
-            });
+                t.layout.eachNode(function (node, point) {
+                    t.drawNode(node, point.p);
+                });
 
-            if (t.onRenderFrame !== undefined) {
-                t.onRenderFrame();
-            }
-        }, this.onRenderStop, this.onRenderStart);
-    };
+                if (t.onRenderFrame !== undefined) {
+                    t.onRenderFrame();
+                }
+            }, this.onRenderStop, this.onRenderStart);
+        };
 
-    Renderer.prototype.stop = function () {
-        this.layout.stop();
-    };
+        Renderer.prototype.stop = function () {
+            this.layout.stop();
+        };
 
 // Array.forEach implementation for IE support..
 //https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/forEach
-    if (!Array.prototype.forEach) {
-        Array.prototype.forEach = function (callback, thisArg) {
-            var T, k;
-            if (this == null) {
-                throw new TypeError(" this is null or not defined");
-            }
-            var O = Object(this);
-            var len = O.length >>> 0; // Hack to convert O.length to a UInt32
-            if ({}.toString.call(callback) != "[object Function]") {
-                throw new TypeError(callback + " is not a function");
-            }
-            if (thisArg) {
-                T = thisArg;
-            }
-            k = 0;
-            while (k < len) {
-                var kValue;
-                if (k in O) {
-                    kValue = O[k];
-                    callback.call(T, kValue, k, O);
+        if (!Array.prototype.forEach) {
+            Array.prototype.forEach = function (callback, thisArg) {
+                var T, k;
+                if (this == null) {
+                    throw new TypeError(" this is null or not defined");
                 }
-                k++;
-            }
-        };
-    }
-
-    var isEmpty = function (obj) {
-        for (var k in obj) {
-            if (obj.hasOwnProperty(k)) {
-                return false;
-            }
+                var O = Object(this);
+                var len = O.length >>> 0; // Hack to convert O.length to a UInt32
+                if ({}.toString.call(callback) != "[object Function]") {
+                    throw new TypeError(callback + " is not a function");
+                }
+                if (thisArg) {
+                    T = thisArg;
+                }
+                k = 0;
+                while (k < len) {
+                    var kValue;
+                    if (k in O) {
+                        kValue = O[k];
+                        callback.call(T, kValue, k, O);
+                    }
+                    k++;
+                }
+            };
         }
-        return true;
-    };
 
-    return Springy;
-}))
+        var isEmpty = function (obj) {
+            for (var k in obj) {
+                if (obj.hasOwnProperty(k)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        return Springy;
+    }
+))
 ;

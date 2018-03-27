@@ -1,11 +1,12 @@
-package com.jfpuhui.anti.pojo;
+package com.jfpuhui.anti.dao.pojo;
 
 
 import sun.text.normalizer.IntTrie;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 
-public class CustRelationship {
+public class CustRelationship implements Serializable{
 
     private long id;
     private String uCertId;
